@@ -125,7 +125,10 @@ router.get('/:pageId/all', verifyToken, async (req, res) => {
         postCreatedTime: comment.postCreatedTime,
         postUrl: comment.postUrl,
         canReplyPrivately: comment.can_reply_privately !== false,
-        permalinkUrl: comment.permalink_url
+        permalinkUrl: comment.permalink_url,
+        isReply: comment.isReply || false,
+        parentCommentId: comment.parentCommentId || null,
+        from: comment.from // Include the from object for author info
       });
     });
 

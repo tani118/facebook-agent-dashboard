@@ -3,7 +3,7 @@ const User = require('./models/User');
 
 async function addPageToUser() {
   try {
-    await mongoose.connect('mongodb://localhost:27017/facebook_dashboard');
+    await mongoose.connect('mongodb://localhost:27017/facebook-helpdesk');
     console.log('Connected to MongoDB');
     
     // Find the user who has Facebook pages
