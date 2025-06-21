@@ -127,11 +127,21 @@ class FacebookMessageFetcher {
         }
         
         recipientId = userParticipant.id;
+      } else if (conversationIdOrUserId.includes('_')) {
+        // Handle our custom conversation ID format: pageId_customerId_timestamp
+        const parts = conversationIdOrUserId.split('_');
+        if (parts.length >= 2) {
+          // Extract customer ID from format: pageId_customerId_timestamp
+          recipientId = parts[1];
+          console.log(`Extracted customer ID ${recipientId} from conversation ID ${conversationIdOrUserId}`);
+        }
       }
       
       // Use the page's messages endpoint to send a message to the user
       const pageId = this.pageId || '666760583189727'; // Fallback to known page ID
       const url = `${this.baseURL}/${pageId}/messages`;
+      
+      console.log(`Sending message to recipient ${recipientId} via page ${pageId}`);
       
       const response = await axios.post(url, {
         recipient: {

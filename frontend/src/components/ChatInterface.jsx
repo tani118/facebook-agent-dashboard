@@ -200,7 +200,10 @@ const ChatInterface = ({ item, type, pageId, pageAccessToken }) => {
           );
         });
         
-        const response = await axios.post(`/facebook/conversations/${item.id}/send`, {
+        // Use conversationId for conversations, id for posts
+        const conversationId = item.conversationId || item.id;
+        
+        const response = await axios.post(`/facebook/conversations/${conversationId}/send`, {
           message: messageText,
           pageAccessToken: pageAccessToken,
           pageId: pageId
