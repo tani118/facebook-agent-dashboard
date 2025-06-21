@@ -3,18 +3,18 @@ import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
 import ConversationList from './ConversationList';
 import ChatInterface from './ChatInterface';
-import CommentsView from './CommentsView';
+import CommentsChatInterface from './CommentsChatInterface';
+import FacebookPageSetup from './FacebookPageSetup';
 import socketService from '../services/socketService';
 
 const Dashboard = () => {
   const { user, logout } = useAuth();
   const [conversations, setConversations] = useState([]);
-  const [posts, setPosts] = useState([]);
-  const [selectedItem, setSelectedItem] = useState(null); // conversation or post
+  const [selectedItem, setSelectedItem] = useState(null); // conversation
   const [connectedPages, setConnectedPages] = useState([]);
   const [selectedPage, setSelectedPage] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('conversations'); // 'conversations', 'posts', or 'comments'
+  const [activeTab, setActiveTab] = useState('conversations'); // 'conversations' or 'comments'
 
   useEffect(() => {
     fetchConnectedPages();
@@ -119,8 +119,6 @@ const Dashboard = () => {
     try {
       if (activeTab === 'conversations') {
         await fetchConversations();
-      } else {
-        await fetchPosts();
       }
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -190,42 +188,6 @@ const Dashboard = () => {
     }
   };
 
-  const fetchPosts = async () => {
-    if (!selectedPage || !selectedPage.pageAccessToken) {
-      console.error('No page selected or missing access token for fetching posts');
-      return;
-    }
-
-    try {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        console.error('No authentication token found');
-        return;
-      }
-
-      const response = await axios.get(`/posts/${selectedPage.pageId}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        },
-        params: {
-          limit: 25,
-          pageAccessToken: selectedPage.pageAccessToken
-        }
-      });
-      
-      if (response.data.success) {
-        setPosts(response.data.posts || []);
-      }
-    } catch (error) {
-      console.error('Error fetching posts:', error);
-      // Log the specific error details for debugging
-      if (error.response) {
-        console.error('Error response:', error.response.data);
-        console.error('Error status:', error.response.status);
-      }
-    }
-  };
-
   const handleItemSelect = (item) => {
     setSelectedItem(item);
   };
@@ -239,6 +201,11 @@ const Dashboard = () => {
         </div>
       </div>
     );
+  }
+
+  // If no pages are connected, show FacebookPageSetup
+  if (!loading && connectedPages.length === 0) {
+    return <FacebookPageSetup onPageConnected={fetchConnectedPages} />;
   }
 
   return (
@@ -319,22 +286,11 @@ const Dashboard = () => {
             >
               Comments
             </button>
-            <button
-              onClick={() => setActiveTab('posts')}
-              className={`flex-1 px-4 py-3 text-sm font-medium border-b-2 ${
-                activeTab === 'posts'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              Posts ({posts.length})
-            </button>
           </div>
 
           {/* List */}
           <ConversationList
             conversations={conversations}
-            posts={posts}
             activeTab={activeTab}
             selectedItem={selectedItem}
             onItemSelect={handleItemSelect}
@@ -345,16 +301,16 @@ const Dashboard = () => {
         {/* Main Chat/Comments Area */}
         <div className="flex-1 flex flex-col">
           {activeTab === 'comments' ? (
-            // Comments View - always show when comments tab is active
-            <CommentsView
+            // Comments Chat Interface - messenger-style chat for comments
+            <CommentsChatInterface
               selectedPage={selectedPage}
               pageAccessToken={selectedPage?.pageAccessToken}
             />
           ) : selectedItem ? (
-            // Chat Interface for conversations and posts
+            // Chat Interface for conversations
             <ChatInterface
               item={selectedItem}
-              type={activeTab === 'conversations' ? 'conversation' : 'post'}
+              type="conversation"
               pageId={selectedPage?.pageId}
               pageAccessToken={selectedPage?.pageAccessToken}
             />
@@ -362,11 +318,9 @@ const Dashboard = () => {
             // Empty state
             <div className="flex-1 flex items-center justify-center text-gray-500">
               <div className="text-center">
-                <div className="text-6xl mb-4">
-                  {activeTab === 'conversations' ? '💬' : '📄'}
-                </div>
+                <div className="text-6xl mb-4">💬</div>
                 <p className="text-lg">
-                  Select a {activeTab === 'conversations' ? 'conversation' : 'post'} to start
+                  Select a conversation to start
                 </p>
               </div>
             </div>
