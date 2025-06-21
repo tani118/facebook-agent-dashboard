@@ -43,16 +43,18 @@ const Sidebar = ({ activeTab }) => {
 
       <div className="flex flex-col gap-10">
         {sidebarOps?.map((op) => (
-          <div key={op.name} className="relative">
+          <div key={op.name} className="relative flex items-center">
+            <div className="w-1 absolute left-[-8px]">
+              {activeTab === op.name && (
+                <div className="h-6 w-1 bg-white rounded-full"></div>
+              )}
+            </div>
             <img 
               alt={op.name} 
               src={activeTab === op.name ? op.iconSelected : op.icon} 
               className="h-6 w-6 cursor-pointer"
               onClick={() => window.location.href = op.link}
             />
-            {activeTab === op.name && (
-              <div className="absolute left-[-4px] top-0 h-full w-1 bg-white rounded-full"></div>
-            )}
           </div>
         ))}
       </div>

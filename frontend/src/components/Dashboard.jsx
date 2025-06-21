@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
-import ConversationList from './ConversationList';
-import ChatInterface from './ChatInterface';
-import CommentsChatInterface from './CommentsChatInterface';
+import UnifiedConversationList from './UnifiedConversationList';
+import UnifiedChatInterface from './UnifiedChatInterface';
 import CustomerInformation from './CustomerInformation';
 import FacebookPageSetup from './FacebookPageSetup';
 import Sidebar from './Sidebar';
@@ -12,11 +11,12 @@ import socketService from '../services/socketService';
 const Dashboard = () => {
   const { user, logout } = useAuth();
   const [conversations, setConversations] = useState([]);
-  const [selectedItem, setSelectedItem] = useState(null); // conversation
+  const [commentUsers, setCommentUsers] = useState([]);
+  const [selectedItem, setSelectedItem] = useState(null); // conversation or comment thread
   const [connectedPages, setConnectedPages] = useState([]);
   const [selectedPage, setSelectedPage] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('conversations'); // 'conversations' or 'comments'
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     fetchConnectedPages();
@@ -96,7 +96,29 @@ const Dashboard = () => {
         socketService.joinPageRoom(selectedPage.pageId);
       }
     }
-  }, [selectedPage, activeTab]);
+  }, [selectedPage]);
+  
+  // Set up real-time comment notification
+  useEffect(() => {
+    if (selectedPage && selectedPage.pageId) {
+      const handleNewComment = (data) => {
+        console.log('📩 New comment/reply received:', data);
+        
+        // Auto-refresh comments after a short delay
+        setTimeout(() => {
+          if (activeTab === 'comments') {
+            fetchComments();
+          }
+        }, 2000);
+      };
+      
+      socketService.on('new-comment', handleNewComment);
+      
+      return () => {
+        socketService.off('new-comment', handleNewComment);
+      };
+    }
+  }, [selectedPage]);
 
   const fetchConnectedPages = async () => {
     try {
@@ -118,14 +140,18 @@ const Dashboard = () => {
     if (!selectedPage) return;
     
     setLoading(true);
+    setRefreshing(true);
     try {
-      if (activeTab === 'conversations') {
-        await fetchConversations();
-      }
+      // Fetch both conversations and comments
+      await Promise.all([
+        fetchConversations(),
+        fetchComments()
+      ]);
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
@@ -190,6 +216,48 @@ const Dashboard = () => {
     }
   };
 
+  const fetchComments = async () => {
+    if (!selectedPage?.pageId || !selectedPage?.pageAccessToken) {
+      console.error('No page ID or access token available');
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${import.meta.env.VITE_API_BASE_URL || ''}/comments/${selectedPage.pageId}/all`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        params: {
+          pageAccessToken: selectedPage.pageAccessToken,
+          limit: 50
+        }
+      });
+
+      if (response.data.success) {
+        console.log('Comments data received:', response.data.data);
+        
+        // Filter out page admin from user list - only show actual customers
+        const filteredData = {
+          ...response.data.data,
+          userComments: response.data.data.userComments.filter(userGroup => 
+            userGroup.userId !== selectedPage.pageId
+          )
+        };
+        
+        // Add pageId to each user group for later reference
+        const userCommentsWithPageId = filteredData.userComments.map(userGroup => ({
+          ...userGroup,
+          pageId: selectedPage.pageId
+        }));
+        
+        setCommentUsers(userCommentsWithPageId);
+      }
+    } catch (error) {
+      console.error('Error fetching comments:', error);
+    }
+  };
+
   const handleItemSelect = (item) => {
     setSelectedItem(item);
   };
@@ -211,45 +279,33 @@ const Dashboard = () => {
   }
 
   return (
-    <div className="flex h-[100vh] w-[100vw]">
+    <div className="flex h-screen w-screen overflow-hidden">
       {/* Sidebar */}
-      <div className="flex flex-col w-[5%] min-w-[60px] bg-primary">
+      <div className="flex flex-col w-16 bg-primary">
         <Sidebar activeTab="chatportal" />
       </div>
 
       {/* Main Content */}
-      <div className="flex w-[95%]">
-        {/* Conversation List Sidebar */}
-        <div className="w-[20%] border-r flex flex-col">
-          {/* Tabs */}
-          <div className="flex border-b border-gray-200 bg-white">
+      <div className="flex flex-1 overflow-hidden">
+        {/* Conversation & Comments List Sidebar */}
+        <div className="w-80 border-r flex flex-col overflow-hidden">
+          {/* Header */}
+          <div className="flex justify-between items-center px-4 py-4 border-b border-gray-200 bg-white">
+            <h2 className="text-xl font-medium">Conversations</h2>
             <button
-              onClick={() => setActiveTab('conversations')}
-              className={`flex-1 px-4 py-3 text-sm font-medium ${
-                activeTab === 'conversations'
-                  ? 'text-primary border-b-2 border-primary'
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
+              onClick={fetchData}
+              disabled={refreshing}
+              className="text-gray-500 hover:text-gray-700 text-lg flex items-center"
             >
-              Conversations ({conversations.length})
-            </button>
-            <button
-              onClick={() => setActiveTab('comments')}
-              className={`flex-1 px-4 py-3 text-sm font-medium ${
-                activeTab === 'comments'
-                  ? 'text-primary border-b-2 border-primary'
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              Comments
+              <span className={refreshing ? "animate-spin" : ""}>↻</span>
             </button>
           </div>
 
-          {/* List */}
+          {/* Unified List */}
           <div className="flex-1 overflow-y-auto bg-white">
-            <ConversationList
+            <UnifiedConversationList
               conversations={conversations}
-              activeTab={activeTab}
+              commentUsers={commentUsers}
               selectedItem={selectedItem}
               onItemSelect={handleItemSelect}
               loading={loading}
@@ -258,33 +314,38 @@ const Dashboard = () => {
         </div>
 
         {/* Main Chat Area */}
-        {activeTab === 'comments' ? (
-          <CommentsChatInterface
-            selectedPage={selectedPage}
-            pageAccessToken={selectedPage?.pageAccessToken}
-          />
-        ) : selectedItem ? (
-          <div className="flex flex-1">
-            <ChatInterface
+        {selectedItem ? (
+          <div className="flex flex-1 overflow-hidden">
+            <UnifiedChatInterface
               item={selectedItem}
-              type="conversation"
+              type={selectedItem.type}
               pageId={selectedPage?.pageId}
               pageAccessToken={selectedPage?.pageAccessToken}
+              selectedPage={selectedPage}
             />
             
             {/* Customer Information Panel */}
-            <div className="w-[20%]">
-              <CustomerInformation 
-                customer={{
-                  id: selectedItem.customerId || selectedItem.senderPsid || selectedItem.senderId,
-                  name: selectedItem.customerName,
-                  email: selectedItem.customerEmail,
-                  firstName: selectedItem.customerFirstName,
-                  lastName: selectedItem.customerLastName,
-                  profilePic: selectedItem.customerProfilePic
-                }}
-              />
-            </div>
+            <CustomerInformation 
+              customer={{
+                id: selectedItem.type === 'conversation'
+                  ? (selectedItem.customerId || selectedItem.senderPsid || selectedItem.senderId)
+                  : selectedItem.userId,
+                name: selectedItem.type === 'conversation'
+                  ? selectedItem.customerName
+                  : selectedItem.userName,
+                email: selectedItem.customerEmail || (selectedItem.type === 'comments' ? `${selectedItem.userName.replace(' ', '.').toLowerCase()}@example.com` : ''),
+                firstName: selectedItem.type === 'conversation'
+                  ? selectedItem.customerFirstName
+                  : selectedItem.userName.split(' ')[0],
+                lastName: selectedItem.type === 'conversation'
+                  ? selectedItem.customerLastName 
+                  : (selectedItem.userName.split(' ')[1] || ''),
+                profilePic: selectedItem.type === 'conversation'
+                  ? selectedItem.customerProfilePic
+                  : selectedItem.userPicture,
+                timezone: selectedItem.timezone || "UTC"
+              }}
+            />
           </div>
         ) : (
           <div className="flex items-center justify-center w-full text-gray-500 bg-[#F6F6F6]">

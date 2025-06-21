@@ -66,7 +66,7 @@ const SelfMessage = ({ message, senderName, profilePic, type = "both" }) => {
             {message.message || message.content}
           </div>
           {isTimeVisible && (
-            <div className="px-2 mt-1">
+            <div className="px-2">
               <span className="text-xs text-gray-800 font-medium">{senderName || 'You'}</span>
               <span className="text-xs text-gray-800"> - {formatMessageTime(timestamp)}</span>
             </div>
@@ -75,16 +75,17 @@ const SelfMessage = ({ message, senderName, profilePic, type = "both" }) => {
         <img 
           src={profilePic || userImage} 
           alt="profile-icon" 
-          className={`${!isIconVisible ? "invisible" : ""} rounded-full aspect-square w-8 h-8 object-cover my-[6px]`}
+          className={`${!isIconVisible && "invisible"} rounded-full aspect-square w-8 object-cover my-[6px]`}
         />
       </div>
     </div>
   );
 };
 
-const OthersMessage = ({ message, senderName, profilePic, type = "both" }) => {
+const OthersMessage = ({ message, senderName, profilePic }) => {
   const timestamp = message.timestamp || message.created_time || message.createdAt || new Date().toString();
   // Determine if icon and time should be visible based on message type
+  const type = "both"; // Default for now, can be made dynamic later
   const isIconVisible = type === "both" || type === "first";
   const isTimeVisible = type === "both" || type === "last";
   
@@ -96,7 +97,7 @@ const OthersMessage = ({ message, senderName, profilePic, type = "both" }) => {
             {message.message || message.content}
           </div>
           {isTimeVisible && (
-            <div className="px-2 mt-1">
+            <div className="px-2">
               <span className="text-xs text-gray-800 font-medium">{senderName || 'Customer'}</span>
               <span className="text-xs text-gray-800"> - {formatMessageTime(timestamp)}</span>
             </div>
@@ -105,7 +106,7 @@ const OthersMessage = ({ message, senderName, profilePic, type = "both" }) => {
         <img 
           src={profilePic || userImage} 
           alt="profile-icon" 
-          className={`${!isIconVisible ? "invisible" : ""} rounded-full aspect-square w-8 h-8 object-cover my-[6px]`}
+          className={`${!isIconVisible && "invisible"} rounded-full aspect-square w-8 object-cover my-[6px]`}
         />
       </div>
     </div>
@@ -180,10 +181,7 @@ const ChatInterface = ({ item, type, pageId, pageAccessToken }) => {
 
   const scrollToBottom = () => {
     if (messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
-    }
-    if (chatBoxRef.current) {
-      chatBoxRef.current.scrollTop = chatBoxRef.current.scrollHeight;
+      messagesEndRef.current.scrollIntoView({ behavior: 'instant' });
     }
   };
 
@@ -432,9 +430,9 @@ const ChatInterface = ({ item, type, pageId, pageAccessToken }) => {
       {/* Messages/Comments Area */}
       <div 
         ref={chatBoxRef}
-        className="flex flex-col flex-1 overflow-y-auto"
+        className="flex flex-col flex-grow overflow-y-auto justify-between"
       >
-        <div className="flex flex-col pt-4 px-8 pb-20">
+        <div className="flex flex-col pt-4 px-8">
           {loading ? (
             <div className="flex justify-center w-full py-4">
               <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
@@ -459,8 +457,8 @@ const ChatInterface = ({ item, type, pageId, pageAccessToken }) => {
                     
                     // Get profile pictures
                     const profilePic = isFromPage 
-                      ? item.pageProfilePic || userImage // Page profile pic
-                      : item.customerProfilePic || message.profilePic || message.from?.profile_pic || userImage; // Customer profile pic
+                      ? item.pageProfilePic // Page profile pic
+                      : item.customerProfilePic || message.profilePic || message.from?.profile_pic; // Customer profile pic
 
                     // Determine message type for styling
                     let messageType = "both";
@@ -545,8 +543,8 @@ const ChatInterface = ({ item, type, pageId, pageAccessToken }) => {
       </div>
 
       {/* Message Input */}
-      <div className="w-full max-w-[800px] self-center my-4 mx-8 mb-6">
-        <div className="w-full p-2 rounded-md border border-gray-300 outline-blue-600/60 bg-white shadow-sm">
+      <div className="w-full max-w-[800px] self-center my-4 mx-8">
+        <div className="w-full p-2 rounded-md border border-gray-300 outline-blue-600/60 bg-white">
           <form 
             className="flex items-center gap-2"
             onSubmit={(e) => {
@@ -564,13 +562,12 @@ const ChatInterface = ({ item, type, pageId, pageAccessToken }) => {
                 }
               }}
               placeholder="Message Here"
-              className="w-full outline-none px-2 py-1"
+              className="w-full outline-none"
               disabled={sending}
             />
             <button 
               type="submit" 
               disabled={!newMessage.trim() || sending}
-              className="p-1 hover:bg-gray-100 rounded-full"
             >
               <SendHorizontal size={20} className="text-[#044080f5]" />
             </button>

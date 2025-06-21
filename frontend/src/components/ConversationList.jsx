@@ -109,9 +109,9 @@ const ConversationList = ({
               <span className="max-w-[100%] overflow-hidden text-left font-medium">
                 {getCustomerName(conversation)}
               </span>
-              <span className="text-sm font-medium">Facebook DM</span>
+              <span className="text-sm font-bold text-gray-600">Facebook DM</span>
             </div>
-            <span className="text-sm mb-4 opacity-60">
+            <span className="text-sm mb-4 text-gray-500">
               {formatTime(getLastMessageTime(conversation))}
             </span>
           </div>
