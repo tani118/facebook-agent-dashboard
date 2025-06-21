@@ -44,8 +44,11 @@ app.use(cors({
     process.env.FRONTEND_URL || 'http://localhost:5173',
     'http://localhost:5174', // Additional port in case 5173 is in use
     'http://localhost:5175', // Additional port in case 5174 is also in use
+    'http://localhost:5176', // Current frontend port
+    'http://localhost:5177', // Another possible frontend port
     'http://localhost:5173', // Allow local frontend explicitly
-    'https://b1d4-103-108-5-157.ngrok-free.app' // Allow self-requests via ngrok
+    'https://b1d4-103-108-5-157.ngrok-free.app', // Allow self-requests via ngrok
+    'https://eca5-103-108-5-157.ngrok-free.app' // Current ngrok URL
   ],
   credentials: true
 }));
