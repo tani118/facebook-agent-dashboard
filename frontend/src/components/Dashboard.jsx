@@ -17,6 +17,7 @@ const Dashboard = () => {
   const [selectedPage, setSelectedPage] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [sidebarVisible, setSidebarVisible] = useState(true);
 
   useEffect(() => {
     fetchConnectedPages();
@@ -288,7 +289,7 @@ const Dashboard = () => {
       {/* Main Content */}
       <div className="flex flex-1 overflow-hidden">
         {/* Conversation & Comments List Sidebar */}
-        <div className="w-80 border-r flex flex-col overflow-hidden">
+        <div className={`${sidebarVisible ? 'w-80' : 'w-0'} border-r flex flex-col overflow-hidden transition-all duration-300`}>
           {/* Header */}
           <div className="flex justify-between items-center px-4 py-4 border-b border-gray-200 bg-white">
             <h2 className="text-xl font-medium">Conversations</h2>
