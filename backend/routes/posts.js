@@ -12,7 +12,7 @@ const User = require('../models/User');
 router.get('/:pageId', verifyToken, async (req, res) => {
   try {
     const { pageId } = req.params;
-    const { limit = 25, since, until } = req.query;
+    const { limit = 25, since, until, pageAccessToken } = req.query;
 
     // Find user and get page access token
     const user = await User.findById(req.user.id);
@@ -20,12 +20,22 @@ router.get('/:pageId', verifyToken, async (req, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    const page = user.facebookPages.find(p => p.pageId === pageId);
-    if (!page) {
-      return res.status(404).json({ error: 'Page not found for this user' });
+    let accessToken = pageAccessToken; // Use token from query if provided
+
+    // If no token in query, try to find it from user's pages
+    if (!accessToken) {
+      const page = user.facebookPages.find(p => p.pageId === pageId);
+      if (!page) {
+        return res.status(404).json({ error: 'Page not found for this user and no pageAccessToken provided' });
+      }
+      accessToken = page.pageAccessToken;
     }
 
-    const fetcher = new FacebookPostCommentsFetcher(page.pageAccessToken);
+    if (!accessToken) {
+      return res.status(400).json({ error: 'Page access token is required' });
+    }
+
+    const fetcher = new FacebookPostCommentsFetcher(accessToken);
     const result = await fetcher.fetchPagePosts(pageId, limit, since, until);
 
     if (!result.success) {
@@ -50,7 +60,7 @@ router.get('/:pageId', verifyToken, async (req, res) => {
 router.get('/:pageId/:postId/comments', verifyToken, async (req, res) => {
   try {
     const { pageId, postId } = req.params;
-    const { limit = 25, order = 'chronological', includeReplies = 'true' } = req.query;
+    const { limit = 25, order = 'chronological', includeReplies = 'true', pageAccessToken } = req.query;
 
     // Find user and get page access token
     const user = await User.findById(req.user.id);
@@ -58,12 +68,22 @@ router.get('/:pageId/:postId/comments', verifyToken, async (req, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    const page = user.facebookPages.find(p => p.pageId === pageId);
-    if (!page) {
-      return res.status(404).json({ error: 'Page not found for this user' });
+    let accessToken = pageAccessToken; // Use token from query if provided
+
+    // If no token in query, try to find it from user's pages
+    if (!accessToken) {
+      const page = user.facebookPages.find(p => p.pageId === pageId);
+      if (!page) {
+        return res.status(404).json({ error: 'Page not found for this user and no pageAccessToken provided' });
+      }
+      accessToken = page.pageAccessToken;
     }
 
-    const fetcher = new FacebookPostCommentsFetcher(page.pageAccessToken);
+    if (!accessToken) {
+      return res.status(400).json({ error: 'Page access token is required' });
+    }
+
+    const fetcher = new FacebookPostCommentsFetcher(accessToken);
     const result = await fetcher.fetchPostComments(
       postId, 
       limit, 

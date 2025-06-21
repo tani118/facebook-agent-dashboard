@@ -21,7 +21,7 @@ class FacebookPostCommentsFetcher {
       const params = {
         access_token: this.pageAccessToken,
         limit: limit,
-        fields: 'id,message,created_time,updated_time,story,full_picture,permalink_url,status_type,type,from,comments_count,likes_count,reactions_count,shares_count'
+        fields: 'id,message,created_time'
       };
 
       if (since) params.since = since;

@@ -4,7 +4,7 @@ const bcrypt = require('bcryptjs');
 
 async function createTestUser() {
   try {
-    await mongoose.connect('mongodb://localhost:27017/facebook-helpdesk-dashboard');
+    await mongoose.connect('mongodb://localhost:27017/facebook_dashboard');
     console.log('Connected to MongoDB');
     
     // Check if test user exists

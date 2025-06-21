@@ -3,7 +3,7 @@ const User = require('./models/User');
 
 async function debugLogin() {
   try {
-    await mongoose.connect('mongodb://localhost:27017/facebook-helpdesk-dashboard');
+    await mongoose.connect('mongodb://localhost:27017/facebook_dashboard');
     console.log('Connected to MongoDB');
     
     // Find the user 
@@ -16,7 +16,7 @@ async function debugLogin() {
       console.log('Password length:', user.password ? user.password.length : 0);
       
       // Test password comparison
-      const isValid = await user.comparePassword('Test123!');
+      const isValid = await user.comparePassword('test123');
       console.log('Password valid:', isValid);
     }
     
