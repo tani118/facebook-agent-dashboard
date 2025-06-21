@@ -10,19 +10,26 @@ const generateToken = (userId) => {
 
 // Verify JWT token middleware
 const verifyToken = async (req, res, next) => {
+  console.log('=== VERIFY TOKEN MIDDLEWARE ===');
+  console.log('Headers:', req.headers);
+  console.log('Authorization header:', req.headers.authorization);
+  
   try {
     let token;
 
     // Check for token in Authorization header
     if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
       token = req.headers.authorization.split(' ')[1];
+      console.log('Token found in Bearer header:', token?.substring(0, 20) + '...');
     }
     // Check for token in cookies (if using cookie-based auth)
     else if (req.cookies && req.cookies.token) {
       token = req.cookies.token;
+      console.log('Token found in cookies');
     }
 
     if (!token) {
+      console.log('No token found in request');
       return res.status(401).json({
         success: false,
         message: 'Access denied. No token provided.'
@@ -30,12 +37,16 @@ const verifyToken = async (req, res, next) => {
     }
 
     // Verify token
+    console.log('Verifying token with JWT_SECRET');
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    console.log('Token decoded:', decoded);
     
     // Get user from token
     const user = await User.findById(decoded.userId).select('-password');
+    console.log('User found:', user?._id);
     
     if (!user) {
+      console.log('User not found for token');
       return res.status(401).json({
         success: false,
         message: 'Token is not valid - user not found.'
@@ -43,6 +54,7 @@ const verifyToken = async (req, res, next) => {
     }
 
     req.user = user;
+    console.log('Token verification successful, proceeding to next middleware');
     next();
   } catch (error) {
     console.error('Token verification error:', error);

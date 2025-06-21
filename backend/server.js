@@ -21,7 +21,13 @@ connectDB();
 
 // Middleware
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  origin: [
+    process.env.FRONTEND_URL || 'http://localhost:5173',
+    'http://localhost:5174', // Additional port in case 5173 is in use
+    'http://localhost:5175', // Additional port in case 5174 is also in use
+    'http://localhost:5173', // Allow local frontend explicitly
+    'https://b1d4-103-108-5-157.ngrok-free.app' // Allow self-requests via ngrok
+  ],
   credentials: true
 }));
 

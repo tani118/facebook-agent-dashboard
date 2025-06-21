@@ -7,7 +7,7 @@ const Message = require('../models/Message');
 const User = require('../models/User');
 
 // Webhook verification endpoint
-router.get('/webhook', (req, res) => {
+router.get('/', (req, res) => {
   // Parse the query params
   const mode = req.query['hub.mode'];
   const token = req.query['hub.verify_token'];
@@ -30,7 +30,7 @@ router.get('/webhook', (req, res) => {
 });
 
 // Webhook event handler
-router.post('/webhook', (req, res) => {
+router.post('/', (req, res) => {
   const body = req.body;
 
   // Check if this is an event from a page subscription

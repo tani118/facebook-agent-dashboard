@@ -10,6 +10,88 @@ const {
   subscribeToWebhook
 } = require('../utils/facebookUtils');
 
+// @route   GET /api/facebook-auth/
+// @desc    Initiate Facebook OAuth flow
+// @access  Public
+router.get('/', (req, res) => {
+  console.log('=== OAUTH INITIATION ===');
+  console.log('FACEBOOK_APP_ID:', process.env.FACEBOOK_APP_ID);
+  console.log('BACKEND_URL:', process.env.BACKEND_URL);
+  console.log('FRONTEND_URL:', process.env.FRONTEND_URL);
+  
+  const facebookAuthUrl = `https://www.facebook.com/v23.0/dialog/oauth?` +
+    `client_id=${process.env.FACEBOOK_APP_ID}&` +
+    `redirect_uri=${encodeURIComponent(process.env.BACKEND_URL + '/api/facebook-auth/callback')}&` +
+    `scope=pages_show_list,pages_read_engagement,pages_manage_metadata,pages_messaging,business_management,pages_manage_engagement&` +
+    `response_type=code&` +
+    `state=${Math.random().toString(36).substring(7)}`;
+  
+  console.log('Generated OAuth URL:', facebookAuthUrl);
+  res.redirect(facebookAuthUrl);
+});
+
+// @route   GET /api/facebook-auth/callback
+// @desc    Handle Facebook OAuth callback
+// @access  Public
+router.get('/callback', async (req, res) => {
+  console.log('=== OAUTH CALLBACK ===');
+  console.log('Query params:', req.query);
+  console.log('Headers:', req.headers);
+  
+  try {
+    const { code, error, error_description } = req.query;
+    
+    if (error) {
+      console.error('Facebook OAuth error:', error_description);
+      console.log('Redirecting to frontend with error:', `${process.env.FRONTEND_URL}?error=oauth_failed`);
+      return res.redirect(`${process.env.FRONTEND_URL}?error=oauth_failed`);
+    }
+    
+    if (!code) {
+      console.log('No auth code received');
+      console.log('Redirecting to frontend with error:', `${process.env.FRONTEND_URL}?error=no_auth_code`);
+      return res.redirect(`${process.env.FRONTEND_URL}?error=no_auth_code`);
+    }
+
+    console.log('Auth code received:', code);
+    
+    // Exchange code for access token
+    const tokenUrl = `https://graph.facebook.com/v23.0/oauth/access_token?` +
+      `client_id=${process.env.FACEBOOK_APP_ID}&` +
+      `client_secret=${process.env.FACEBOOK_APP_SECRET}&` +
+      `redirect_uri=${encodeURIComponent(process.env.BACKEND_URL + '/api/facebook-auth/callback')}&` +
+      `code=${code}`;
+    
+    console.log('Token exchange URL:', tokenUrl);
+    
+    const tokenResponse = await fetch(tokenUrl);
+    const tokenData = await tokenResponse.json();
+    
+    console.log('Token response:', tokenData);
+    
+    if (tokenData.error) {
+      console.error('Token exchange error:', tokenData.error);
+      console.log('Redirecting to frontend with error:', `${process.env.FRONTEND_URL}?error=token_exchange_failed`);
+      return res.redirect(`${process.env.FRONTEND_URL}?error=token_exchange_failed`);
+    }
+    
+    // Store token in session for later use AND pass it to frontend
+    req.session.facebookToken = tokenData.access_token;
+    console.log('Token stored in session');
+    
+    // For development, also pass the token as URL parameter (base64 encoded for basic security)
+    const encodedToken = Buffer.from(tokenData.access_token).toString('base64');
+    const successUrl = `${process.env.FRONTEND_URL}?facebook_auth=success&token=${encodedToken}`;
+    console.log('Redirecting to frontend with success and token:', successUrl);
+    res.redirect(successUrl);
+    
+  } catch (error) {
+    console.error('OAuth callback error:', error);
+    console.log('Redirecting to frontend with error:', `${process.env.FRONTEND_URL}?error=oauth_callback_failed`);
+    res.redirect(`${process.env.FRONTEND_URL}?error=oauth_callback_failed`);
+  }
+});
+
 // @route   POST /api/facebook-auth/exchange-token
 // @desc    Exchange short-lived token for long-lived token
 // @access  Private
@@ -53,11 +135,18 @@ router.post('/get-pages', verifyToken, [
     .notEmpty()
     .withMessage('User access token is required')
 ], validateRequest, async (req, res) => {
+  console.log('=== GET PAGES REQUEST ===');
+  console.log('Headers:', req.headers);
+  console.log('User from token:', req.user?._id);
+  console.log('Body:', req.body);
+  
   try {
     const { userToken } = req.body;
 
+    console.log('Fetching pages with user token:', userToken.substring(0, 20) + '...');
     const pages = await getLinkedPages(userToken);
 
+    console.log('Pages retrieved:', pages.length);
     res.json({
       success: true,
       message: 'Pages retrieved successfully',
@@ -318,6 +407,35 @@ router.post('/refresh-page-token', verifyToken, [
     res.status(500).json({
       success: false,
       message: 'Server error while refreshing page token'
+    });
+  }
+});
+
+// @route   GET /api/facebook-auth/session-token
+// @desc    Get Facebook token from session (after OAuth callback)
+// @access  Public (but requires session)
+router.get('/session-token', (req, res) => {
+  console.log('=== GET SESSION TOKEN ===');
+  console.log('Session ID:', req.sessionID);
+  console.log('Session data:', req.session);
+  console.log('Facebook token in session:', req.session.facebookToken);
+  
+  if (req.session.facebookToken) {
+    const token = req.session.facebookToken;
+    // Clear the token from session after retrieving it
+    delete req.session.facebookToken;
+    
+    res.json({
+      success: true,
+      message: 'Facebook token retrieved from session',
+      data: {
+        facebookToken: token
+      }
+    });
+  } else {
+    res.status(404).json({
+      success: false,
+      message: 'No Facebook token found in session'
     });
   }
 });
