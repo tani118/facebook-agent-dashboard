@@ -327,6 +327,7 @@ router.get('/connected-pages', verifyToken, async (req, res) => {
         pages: connectedPages.map(page => ({
           pageId: page.pageId,
           pageName: page.pageName,
+          pageAccessToken: page.pageAccessToken, // Include the access token
           picture: page.picture,
           about: page.about,
           category: page.category,

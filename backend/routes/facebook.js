@@ -141,13 +141,15 @@ router.post('/conversations/:conversationId/send', verifyToken, [
     .withMessage('Message content is required'),
   body('pageAccessToken')
     .notEmpty()
-    .withMessage('Page access token is required')
+    .withMessage('Page access token is required'),
+  body('pageId')
+    .optional()
 ], validateRequest, async (req, res) => {
   try {
     const { conversationId } = req.params;
-    const { message, pageAccessToken } = req.body;
+    const { message, pageAccessToken, pageId } = req.body;
 
-    const fetcher = new FacebookMessageFetcher(pageAccessToken);
+    const fetcher = new FacebookMessageFetcher(pageAccessToken, pageId);
     const result = await fetcher.sendMessage(conversationId, message);
 
     if (result.success) {

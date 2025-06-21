@@ -1,9 +1,10 @@
 const axios = require('axios');
 
 class FacebookMessageFetcher {
-  constructor(pageAccessToken) {
+  constructor(pageAccessToken, pageId = null) {
     this.pageAccessToken = pageAccessToken;
-    this.baseURL = 'https://graph.facebook.com/v18.0';
+    this.pageId = pageId;
+    this.baseURL = 'https://graph.facebook.com/v23.0';
   }
 
   /**
@@ -96,15 +97,49 @@ class FacebookMessageFetcher {
 
   /**
    * Send a message to a conversation
-   * @param {string} conversationId - Facebook Conversation ID
+   * For Facebook pages, we need to extract the user ID from the conversation
+   * and send the message to that user ID using the page's messages endpoint
+   * @param {string} conversationIdOrUserId - Facebook Conversation ID or User ID  
    * @param {string} message - Message text to send
    * @returns {Object} Send message response
    */
-  async sendMessage(conversationId, message) {
+  async sendMessage(conversationIdOrUserId, message) {
     try {
-      const url = `${this.baseURL}/${conversationId}/messages`;
+      let recipientId = conversationIdOrUserId;
+      
+      // If it's a conversation ID (starts with 't_'), we need to get the user ID
+      if (conversationIdOrUserId.startsWith('t_')) {
+        // First, fetch the conversation to get participant details
+        const conversationUrl = `${this.baseURL}/${conversationIdOrUserId}`;
+        const conversationResponse = await axios.get(conversationUrl, {
+          params: {
+            access_token: this.pageAccessToken,
+            fields: 'participants'
+          }
+        });
+        
+        // Find the user participant (not the page)
+        const participants = conversationResponse.data.participants?.data || [];
+        const userParticipant = participants.find(p => p.id !== this.pageId);
+        
+        if (!userParticipant) {
+          throw new Error('Could not find user participant in conversation');
+        }
+        
+        recipientId = userParticipant.id;
+      }
+      
+      // Use the page's messages endpoint to send a message to the user
+      const pageId = this.pageId || '666760583189727'; // Fallback to known page ID
+      const url = `${this.baseURL}/${pageId}/messages`;
+      
       const response = await axios.post(url, {
-        message: message,
+        recipient: {
+          id: recipientId
+        },
+        message: {
+          text: message
+        },
         access_token: this.pageAccessToken
       });
 
