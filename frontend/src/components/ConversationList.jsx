@@ -1,4 +1,14 @@
 import React from 'react';
+import ConversationImg from '../assets/conversation.jpg';
+
+const EmptyChat = () => {
+  return (
+    <div className="flex flex-col items-center justify-center h-[80%] opacity-60">
+      <img src={ConversationImg} alt="Empty conversation" className="h-32 w-32" />
+      <span>No conversation has started yet.</span>
+    </div>
+  );
+};
 
 const ConversationList = ({ 
   conversations, 
@@ -67,7 +77,7 @@ const ConversationList = ({
     return (
       <div className="flex-1 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
           <p className="mt-2 text-sm text-gray-500">Loading...</p>
         </div>
       </div>
@@ -80,61 +90,44 @@ const ConversationList = ({
   }
 
   if (conversations.length === 0) {
-    return (
-      <div className="flex-1 flex items-center justify-center">
-        <div className="text-center text-gray-500">
-          <div className="text-4xl mb-3">💬</div>
-          <p>No conversations found</p>
-        </div>
-      </div>
-    );
+    return <EmptyChat />;
   }
 
   return (
-    <div className="flex-1 overflow-y-auto">
+    <div className="flex-1 overflow-y-auto flex flex-col items-start">
       {conversations.map((conversation) => (
         <div
           key={conversation.id || conversation._id}
           onClick={() => onItemSelect(conversation)}
-          className={`p-4 border-b border-gray-200 cursor-pointer hover:bg-gray-50 ${
-            selectedItem?.id === conversation.id ? 'bg-blue-50 border-l-4 border-l-blue-500' : ''
+          className={`flex flex-col p-4 w-full border-b cursor-pointer hover:bg-[#F6F6F6] transition-all duration-200 ${
+            selectedItem?.id === conversation.id || selectedItem?.conversationId === conversation.id ? 'bg-[#F6F6F6]' : ''
           }`}
         >
-          <div className="flex items-start space-x-3">
-            <div className="flex-shrink-0">
-              <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center text-white font-medium">
-                {getCustomerName(conversation).charAt(0).toUpperCase()}
-              </div>
+          <div className="flex w-full items-center gap-3">
+            <input type="checkbox" className="h-4 w-4" />
+            <div className="flex flex-col items-start w-[80%]">
+              <span className="max-w-[100%] overflow-hidden text-left font-medium">
+                {getCustomerName(conversation)}
+              </span>
+              <span className="text-sm opacity-70">Facebook DM</span>
             </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-medium text-gray-900 truncate">
-                  {getCustomerName(conversation)}
-                </p>
-                <p className="text-xs text-gray-500">
-                  {formatTime(getLastMessageTime(conversation))}
-                </p>
-              </div>
-              <p className="text-sm text-gray-600 truncate">
-                {truncateText(getLastMessage(conversation))}
-              </p>
-              <div className="flex items-center space-x-2 mt-1">
-                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                  conversation.status === 'active' 
-                    ? 'bg-green-100 text-green-800'
-                    : conversation.status === 'pending'
-                    ? 'bg-yellow-100 text-yellow-800'
-                    : 'bg-gray-100 text-gray-800'
-                }`}>
-                  {conversation.status || 'pending'}
+            <span className="text-sm mb-4 opacity-60">
+              {formatTime(getLastMessageTime(conversation))}
+            </span>
+          </div>
+
+          <div className="mr-auto text-left pl-7">
+            <span className="text-sm opacity-60 text-left">
+              {truncateText(getLastMessage(conversation))}
+            </span>
+            
+            {getUnreadCount(conversation) > 0 && (
+              <div className="flex items-center mt-1">
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                  {getUnreadCount(conversation)} unread
                 </span>
-                {getUnreadCount(conversation) > 0 && (
-                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                    {getUnreadCount(conversation)} unread
-                  </span>
-                )}
               </div>
-            </div>
+            )}
           </div>
         </div>
       ))}

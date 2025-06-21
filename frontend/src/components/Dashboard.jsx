@@ -1,10 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
 import ConversationList from './ConversationList';
 import ChatInterface from './ChatInterface';
 import CommentsChatInterface from './CommentsChatInterface';
+import CustomerInformation from './CustomerInformation';
 import FacebookPageSetup from './FacebookPageSetup';
+import Sidebar from './Sidebar';
 import socketService from '../services/socketService';
 
 const Dashboard = () => {
@@ -196,7 +198,7 @@ const Dashboard = () => {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
           <p className="mt-4 text-gray-600">Loading dashboard...</p>
         </div>
       </div>
@@ -209,79 +211,34 @@ const Dashboard = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center">
-              <h1 className="text-xl font-semibold text-gray-900">
-                Facebook Helpdesk Dashboard
-              </h1>
-              {selectedPage && (
-                <div className="ml-6 flex items-center space-x-2">
-                  <span className="text-sm text-gray-500">Connected to:</span>
-                  <span className="text-sm font-medium text-blue-600">
-                    {selectedPage.pageName}
-                  </span>
-                </div>
-              )}
-            </div>
-            
-            <div className="flex items-center space-x-4">
-              {connectedPages.length > 1 && (
-                <select
-                  value={selectedPage?.pageId || ''}
-                  onChange={(e) => {
-                    const page = connectedPages.find(p => p.pageId === e.target.value);
-                    setSelectedPage(page);
-                  }}
-                  className="text-sm border border-gray-300 rounded-md px-3 py-1"
-                >
-                  {connectedPages.map(page => (
-                    <option key={page.pageId} value={page.pageId}>
-                      {page.pageName}
-                    </option>
-                  ))}
-                </select>
-              )}
-              
-              <div className="flex items-center space-x-2">
-                <span className="text-sm text-gray-700">Hi, {user.name}</span>
-                <button
-                  onClick={logout}
-                  className="text-sm text-red-600 hover:text-red-800"
-                >
-                  Logout
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </header>
+    <div className="flex h-[100vh] w-[100vw]">
+      {/* Sidebar */}
+      <div className="flex flex-col w-[5%] min-w-[60px] bg-primary">
+        <Sidebar activeTab="chatportal" />
+      </div>
 
       {/* Main Content */}
-      <div className="flex h-screen">
-        {/* Sidebar */}
-        <div className="w-1/3 bg-white border-r border-gray-200 flex flex-col">
+      <div className="flex w-[95%]">
+        {/* Conversation List Sidebar */}
+        <div className="w-[20%] border-r flex flex-col">
           {/* Tabs */}
-          <div className="flex border-b border-gray-200">
+          <div className="flex border-b border-gray-200 bg-white">
             <button
               onClick={() => setActiveTab('conversations')}
-              className={`flex-1 px-4 py-3 text-sm font-medium border-b-2 ${
+              className={`flex-1 px-4 py-3 text-sm font-medium ${
                 activeTab === 'conversations'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700'
+                  ? 'text-primary border-b-2 border-primary'
+                  : 'text-gray-500 hover:text-gray-700'
               }`}
             >
               Conversations ({conversations.length})
             </button>
             <button
               onClick={() => setActiveTab('comments')}
-              className={`flex-1 px-4 py-3 text-sm font-medium border-b-2 ${
+              className={`flex-1 px-4 py-3 text-sm font-medium ${
                 activeTab === 'comments'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700'
+                  ? 'text-primary border-b-2 border-primary'
+                  : 'text-gray-500 hover:text-gray-700'
               }`}
             >
               Comments
@@ -289,43 +246,54 @@ const Dashboard = () => {
           </div>
 
           {/* List */}
-          <ConversationList
-            conversations={conversations}
-            activeTab={activeTab}
-            selectedItem={selectedItem}
-            onItemSelect={handleItemSelect}
-            loading={loading}
-          />
+          <div className="flex-1 overflow-y-auto bg-white">
+            <ConversationList
+              conversations={conversations}
+              activeTab={activeTab}
+              selectedItem={selectedItem}
+              onItemSelect={handleItemSelect}
+              loading={loading}
+            />
+          </div>
         </div>
 
-        {/* Main Chat/Comments Area */}
-        <div className="flex-1 flex flex-col">
-          {activeTab === 'comments' ? (
-            // Comments Chat Interface - messenger-style chat for comments
-            <CommentsChatInterface
-              selectedPage={selectedPage}
-              pageAccessToken={selectedPage?.pageAccessToken}
-            />
-          ) : selectedItem ? (
-            // Chat Interface for conversations
+        {/* Main Chat Area */}
+        {activeTab === 'comments' ? (
+          <CommentsChatInterface
+            selectedPage={selectedPage}
+            pageAccessToken={selectedPage?.pageAccessToken}
+          />
+        ) : selectedItem ? (
+          <div className="flex flex-1">
             <ChatInterface
               item={selectedItem}
               type="conversation"
               pageId={selectedPage?.pageId}
               pageAccessToken={selectedPage?.pageAccessToken}
             />
-          ) : (
-            // Empty state
-            <div className="flex-1 flex items-center justify-center text-gray-500">
-              <div className="text-center">
-                <div className="text-6xl mb-4">💬</div>
-                <p className="text-lg">
-                  Select a conversation to start
-                </p>
-              </div>
+            
+            {/* Customer Information Panel */}
+            <div className="w-[20%]">
+              <CustomerInformation 
+                customer={{
+                  name: selectedItem.customerName,
+                  email: selectedItem.customerEmail,
+                  firstName: selectedItem.customerFirstName,
+                  lastName: selectedItem.customerLastName
+                }}
+              />
             </div>
-          )}
-        </div>
+          </div>
+        ) : (
+          <div className="flex items-center justify-center w-full text-gray-500 bg-[#F6F6F6]">
+            <div className="text-center">
+              <div className="text-6xl mb-4">💬</div>
+              <p className="text-lg">
+                Select a conversation to start
+              </p>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

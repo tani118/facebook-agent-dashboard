@@ -1,6 +1,80 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import socketService from '../services/socketService';
+import Card from './CommonComponents/Card';
+import Button from './CommonComponents/Button';
+import userImage from '../assets/user.png';
+import { SendHorizontal } from 'lucide-react';
+
+const SelfMessage = ({ message, senderName }) => {
+  const getTime = (timestamp) => {
+    if (!timestamp) return '';
+    const date = new Date(timestamp);
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
+
+  const getDate = (timestamp) => {
+    if (!timestamp) return '';
+    const date = new Date(timestamp);
+    return date.toLocaleDateString([], { day: 'numeric', month: 'short', year: 'numeric' });
+  };
+  
+  return (
+    <div className="text-black text-left ml-auto p-2 flex flex-col items-end w-full">
+      <div className="flex gap-4 justify-end">
+        <div className="flex flex-col gap-4 items-end max-w-[100%]">
+          <Card className="py-2 px-4 shadow-sm">
+            {message.message || message.content}
+          </Card>
+        </div>
+        <div className="mt-auto">
+          <img alt="user" src={userImage} className="h-10 w-10" />
+        </div>
+      </div>
+      <div className="flex gap-2 justify-end mr-14 mt-2">
+        <span className="font-medium">{senderName || 'You'} •</span>
+        <span>
+          {getDate(message.timestamp || message.created_time)}, {getTime(message.timestamp || message.created_time)}
+        </span>
+      </div>
+    </div>
+  );
+};
+
+const OthersMessage = ({ message, senderName }) => {
+  const getTime = (timestamp) => {
+    if (!timestamp) return '';
+    const date = new Date(timestamp);
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
+
+  const getDate = (timestamp) => {
+    if (!timestamp) return '';
+    const date = new Date(timestamp);
+    return date.toLocaleDateString([], { day: 'numeric', month: 'short', year: 'numeric' });
+  };
+  
+  return (
+    <div className="text-black text-left p-2 flex flex-col items-start w-full">
+      <div className="flex gap-4 w-full justify-start">
+        <div className="mt-auto">
+          <img alt="user" src={userImage} className="h-10 w-10" />
+        </div>
+        <div className="flex flex-col gap-4 items-start max-w-[60%]">
+          <Card className="py-2 px-4 shadow-sm">
+            {message.message || message.content}
+          </Card>
+        </div>
+      </div>
+      <div className="flex gap-2 justify-start ml-14 mt-2">
+        <span className="font-medium">{senderName || 'Customer'} •</span>
+        <span className="opacity-60">
+          {getDate(message.timestamp || message.created_time)}, {getTime(message.timestamp || message.created_time)}
+        </span>
+      </div>
+    </div>
+  );
+};
 
 const ChatInterface = ({ item, type, pageId, pageAccessToken }) => {
   const [messages, setMessages] = useState([]);
@@ -9,6 +83,7 @@ const ChatInterface = ({ item, type, pageId, pageAccessToken }) => {
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
   const messagesEndRef = useRef(null);
+  const chatBoxRef = useRef(null);
 
   useEffect(() => {
     if (item) {
@@ -68,7 +143,9 @@ const ChatInterface = ({ item, type, pageId, pageAccessToken }) => {
   }, [messages, comments]);
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (chatBoxRef.current) {
+      chatBoxRef.current.scrollTop = chatBoxRef.current.scrollHeight;
+    }
   };
 
   const formatTime = (timestamp) => {
@@ -303,97 +380,68 @@ const ChatInterface = ({ item, type, pageId, pageAccessToken }) => {
   }
 
   return (
-    <div className="flex-1 flex flex-col h-full">
+    <div className="flex flex-col w-full relative bg-[#F6F6F6] h-full">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 p-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-lg font-semibold text-gray-900">
-              {type === 'conversation' 
-                ? item.customerName || 'Unknown Customer'
-                : `Post by ${item.from?.name || 'Unknown'}`
-              }
-            </h2>
-            <p className="text-sm text-gray-500">
-              {type === 'conversation' 
-                ? `Conversation • ${item.status || 'pending'}`
-                : `${formatTime(item.created_time)} • ${comments.length} comments`
-              }
-            </p>
-          </div>
-        </div>
-        
-        {/* Show post content if it's a post */}
-        {type === 'post' && item.message && (
-          <div className="mt-3 p-3 bg-gray-50 rounded-lg">
-            <p className="text-sm text-gray-700">{item.message}</p>
-          </div>
-        )}
+      <div className="flex w-full p-3 border-b border-black">
+        <h1 className="text-xl font-semibold opacity-65">
+          {type === 'conversation' 
+            ? item.customerName || 'Unknown Customer'
+            : `Post by ${item.from?.name || 'Unknown'}`
+          }
+        </h1>
       </div>
 
       {/* Messages/Comments Area */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div 
+        ref={chatBoxRef}
+        className="flex flex-col items-start gap-2 pb-20 relative p-3 overflow-scroll h-[80%]"
+      >
         {loading ? (
-          <div className="flex justify-center">
-            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+          <div className="flex justify-center w-full py-4">
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
           </div>
         ) : (
           <>
             {type === 'conversation' ? (
               // Messages
               messages.length === 0 ? (
-                <div className="text-center text-gray-500">
+                <div className="text-center text-gray-500 p-10 w-full">
                   <p>No messages in this conversation yet</p>
                 </div>
               ) : (
                 messages.map((message, index) => {
-                // Handle both local database and Facebook API message formats
-                const isFromPage = message.from?.id === pageId || 
-                                  message.senderId === pageId || 
-                                  message.senderType === 'page';
-                
-                const messageText = message.message || message.content || message.text;
-                const messageTime = message.created_time || message.timestamp || message.createdAt;
-                const senderName = message.from?.name || message.senderName || 
-                                 (isFromPage ? 'You' : 'Customer');
+                  // Handle both local database and Facebook API message formats
+                  const isFromPage = message.from?.id === pageId || 
+                                    message.senderId === pageId || 
+                                    message.senderType === 'page';
+                  
+                  const senderName = message.from?.name || message.senderName || 
+                                   (isFromPage ? 'You' : item.customerName || 'Customer');
 
-                return (
-                  <div
-                    key={message.id || message._id || index}
-                    className={`flex ${isFromPage ? 'justify-end' : 'justify-start'}`}
-                  >
-                    <div className={`max-w-xs lg:max-w-md ${!isFromPage ? 'mr-auto' : 'ml-auto'}`}>
-                      {!isFromPage && (
-                        <p className="text-xs text-gray-500 mb-1 px-1">{senderName}</p>
-                      )}
-                      <div
-                        className={`px-4 py-2 rounded-lg ${
-                          isFromPage
-                            ? 'bg-blue-500 text-white rounded-br-sm'
-                            : 'bg-gray-200 text-gray-900 rounded-bl-sm'
-                        }`}
-                      >
-                        <p className="text-sm whitespace-pre-wrap">{messageText}</p>
-                        <p className={`text-xs mt-1 ${
-                          isFromPage ? 'text-blue-100' : 'text-gray-500'
-                        }`}>
-                          {formatTime(messageTime)}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })
+                  return isFromPage ? (
+                    <SelfMessage 
+                      key={message.id || message._id || index}
+                      message={message}
+                      senderName={senderName}
+                    />
+                  ) : (
+                    <OthersMessage
+                      key={message.id || message._id || index}
+                      message={message}
+                      senderName={senderName}
+                    />
+                  );
+                })
               )
             ) : (
               // Comments
               comments.length === 0 ? (
-                <div className="text-center text-gray-500">
+                <div className="text-center text-gray-500 p-10 w-full">
                   <p>No comments on this post yet</p>
                 </div>
               ) : (
                 comments.map((comment, index) => (
-                  <div key={comment.id || index} className="border-l-4 border-gray-200 pl-4">
+                  <div key={comment.id || index} className="border-l-4 border-gray-200 pl-4 w-full">
                     <div className="flex items-start space-x-3">
                       <div className="flex-shrink-0">
                         <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center">
@@ -415,7 +463,7 @@ const ChatInterface = ({ item, type, pageId, pageAccessToken }) => {
                         <div className="flex items-center space-x-4 mt-2 text-xs text-gray-500">
                           <button 
                             onClick={() => handleReplyToComment(comment.id)}
-                            className="hover:text-blue-600"
+                            className="hover:text-primary"
                           >
                             Reply
                           </button>
@@ -436,35 +484,30 @@ const ChatInterface = ({ item, type, pageId, pageAccessToken }) => {
       </div>
 
       {/* Message Input */}
-      <div className="bg-white border-t border-gray-200 p-4">
-        <div className="flex space-x-3">
-          <input
-            type="text"
-            value={newMessage}
-            onChange={(e) => setNewMessage(e.target.value)}
-            onKeyPress={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                handleSendMessage();
-              }
-            }}
-            placeholder={
-              type === 'conversation' 
-                ? "Type a message..." 
-                : "Write a comment..."
-            }
-            className="flex-1 border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            disabled={sending}
-          />
-          <button
-            onClick={handleSendMessage}
-            disabled={!newMessage.trim() || sending}
-            className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white px-6 py-2 rounded-md font-medium transition-colors"
-          >
-            {sending ? 'Sending...' : 'Send'}
-          </button>
-        </div>
-      </div>
+      <form
+        className="w-[97%] absolute left-[50%] bottom-5 translate-x-[-50%]"
+        onSubmit={(e) => {
+          e.preventDefault();
+          handleSendMessage();
+        }}
+      >
+        <input
+          type="text"
+          value={newMessage}
+          onChange={(e) => setNewMessage(e.target.value)}
+          placeholder={`Message ${item?.customerName || 'Customer'}...`}
+          className="w-full border border-primary rounded-md p-2 focus:outline-none focus:ring-1 focus:ring-primary"
+          disabled={sending}
+        />
+        <Button
+          className="absolute right-0 top-0"
+          onClick={handleSendMessage}
+          disabled={!newMessage.trim() || sending}
+          loading={sending}
+        >
+          <SendHorizontal size={18} />
+        </Button>
+      </form>
     </div>
   );
 };
