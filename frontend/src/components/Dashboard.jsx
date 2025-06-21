@@ -3,6 +3,7 @@ import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
 import ConversationList from './ConversationList';
 import ChatInterface from './ChatInterface';
+import CommentsView from './CommentsView';
 import socketService from '../services/socketService';
 
 const Dashboard = () => {
@@ -13,7 +14,7 @@ const Dashboard = () => {
   const [connectedPages, setConnectedPages] = useState([]);
   const [selectedPage, setSelectedPage] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('conversations'); // 'conversations' or 'posts'
+  const [activeTab, setActiveTab] = useState('conversations'); // 'conversations', 'posts', or 'comments'
 
   useEffect(() => {
     fetchConnectedPages();
@@ -190,13 +191,38 @@ const Dashboard = () => {
   };
 
   const fetchPosts = async () => {
+    if (!selectedPage || !selectedPage.pageAccessToken) {
+      console.error('No page selected or missing access token for fetching posts');
+      return;
+    }
+
     try {
-      const response = await axios.get(`/posts/${selectedPage.pageId}`);
+      const token = localStorage.getItem('token');
+      if (!token) {
+        console.error('No authentication token found');
+        return;
+      }
+
+      const response = await axios.get(`/posts/${selectedPage.pageId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        params: {
+          limit: 25,
+          pageAccessToken: selectedPage.pageAccessToken
+        }
+      });
+      
       if (response.data.success) {
         setPosts(response.data.posts || []);
       }
     } catch (error) {
       console.error('Error fetching posts:', error);
+      // Log the specific error details for debugging
+      if (error.response) {
+        console.error('Error response:', error.response.data);
+        console.error('Error status:', error.response.status);
+      }
     }
   };
 
@@ -275,7 +301,7 @@ const Dashboard = () => {
           <div className="flex border-b border-gray-200">
             <button
               onClick={() => setActiveTab('conversations')}
-              className={`flex-1 px-6 py-3 text-sm font-medium border-b-2 ${
+              className={`flex-1 px-4 py-3 text-sm font-medium border-b-2 ${
                 activeTab === 'conversations'
                   ? 'border-blue-500 text-blue-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700'
@@ -284,8 +310,18 @@ const Dashboard = () => {
               Conversations ({conversations.length})
             </button>
             <button
+              onClick={() => setActiveTab('comments')}
+              className={`flex-1 px-4 py-3 text-sm font-medium border-b-2 ${
+                activeTab === 'comments'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              Comments
+            </button>
+            <button
               onClick={() => setActiveTab('posts')}
-              className={`flex-1 px-6 py-3 text-sm font-medium border-b-2 ${
+              className={`flex-1 px-4 py-3 text-sm font-medium border-b-2 ${
                 activeTab === 'posts'
                   ? 'border-blue-500 text-blue-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700'
@@ -308,7 +344,14 @@ const Dashboard = () => {
 
         {/* Main Chat/Comments Area */}
         <div className="flex-1 flex flex-col">
-          {selectedItem ? (
+          {activeTab === 'comments' ? (
+            // Comments View - always show when comments tab is active
+            <CommentsView
+              selectedPage={selectedPage}
+              pageAccessToken={selectedPage?.pageAccessToken}
+            />
+          ) : selectedItem ? (
+            // Chat Interface for conversations and posts
             <ChatInterface
               item={selectedItem}
               type={activeTab === 'conversations' ? 'conversation' : 'post'}
@@ -316,9 +359,12 @@ const Dashboard = () => {
               pageAccessToken={selectedPage?.pageAccessToken}
             />
           ) : (
+            // Empty state
             <div className="flex-1 flex items-center justify-center text-gray-500">
               <div className="text-center">
-                <div className="text-6xl mb-4">💬</div>
+                <div className="text-6xl mb-4">
+                  {activeTab === 'conversations' ? '💬' : '📄'}
+                </div>
                 <p className="text-lg">
                   Select a {activeTab === 'conversations' ? 'conversation' : 'post'} to start
                 </p>

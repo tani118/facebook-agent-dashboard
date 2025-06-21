@@ -15,6 +15,7 @@ const conversationRoutes = require('./routes/conversations');
 const webhookRoutes = require('./routes/webhook');
 const facebookAuthRoutes = require('./routes/facebookAuth');
 const postsRoutes = require('./routes/posts');
+const commentsRoutes = require('./routes/comments');
 
 const app = express();
 const server = createServer(app);
@@ -74,6 +75,7 @@ app.use('/api/conversations', conversationRoutes);
 app.use('/api/webhook', webhookRoutes);
 app.use('/api/facebook-auth', facebookAuthRoutes);
 app.use('/api/posts', postsRoutes);
+app.use('/api/comments', commentsRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

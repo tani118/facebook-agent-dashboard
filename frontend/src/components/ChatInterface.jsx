@@ -155,16 +155,43 @@ const ChatInterface = ({ item, type, pageId, pageAccessToken }) => {
   };
 
   const fetchComments = async () => {
-    if (!item.id || !pageId) return;
+    if (!item.id || !pageId || !pageAccessToken) {
+      console.error('Missing required data for fetching comments:', { 
+        itemId: !!item.id, 
+        pageId: !!pageId, 
+        pageAccessToken: !!pageAccessToken 
+      });
+      return;
+    }
     
     setLoading(true);
     try {
-      const response = await axios.get(`/posts/${pageId}/${item.id}/comments`);
+      const token = localStorage.getItem('token');
+      if (!token) {
+        console.error('No authentication token found');
+        return;
+      }
+
+      const response = await axios.get(`/posts/${pageId}/${item.id}/comments`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        params: {
+          limit: 25,
+          pageAccessToken: pageAccessToken
+        }
+      });
+      
       if (response.data.success) {
         setComments(response.data.comments || []);
       }
     } catch (error) {
       console.error('Error fetching comments:', error);
+      // Log detailed error information
+      if (error.response) {
+        console.error('Error response:', error.response.data);
+        console.error('Error status:', error.response.status);
+      }
     } finally {
       setLoading(false);
     }
