@@ -154,34 +154,64 @@ async function handleIncomingMessage(messagingEvent, pageId) {
 
       // Update conversation last message
       await updateConversationLastMessage(conversation, message.text || '[Attachment]', new Date(timestamp));
+
+      // Emit real-time update to connected clients
+      if (global.io) {
+        // Emit to user-specific room
+        global.io.to(`user-${user._id}`).emit('new-message', {
+          conversationId: conversation.conversationId,
+          message: {
+            messageId: message.mid,
+            senderId: senderId,
+            senderName: conversation.customerName,
+            content: message.text || '[Attachment]',
+            timestamp: timestamp,
+            type: 'incoming'
+          },
+          conversation: {
+            conversationId: conversation.conversationId,
+            customerName: conversation.customerName,
+            lastMessageContent: message.text || '[Attachment]',
+            lastMessageAt: new Date(timestamp),
+            unreadCount: conversation.unreadCount || 0
+          }
+        });
+
+        // Also emit to page-specific room
+        global.io.to(`page-${pageId}`).emit('conversation-updated', {
+          conversationId: conversation.conversationId,
+          customerName: conversation.customerName,
+          lastMessageContent: message.text || '[Attachment]',
+          lastMessageAt: new Date(timestamp),
+          unreadCount: conversation.unreadCount || 0
+        });
+
+        console.log(`📡 Emitted real-time update for conversation ${conversation.conversationId}`);
+      }
     }
   } catch (error) {
     console.error('Error handling incoming message:', error);
   }
 }
 
-// Find or create conversation based on 24-hour rule
+// Find or create conversation based on unified pageId + customerId matching
 async function findOrCreateConversation(pageId, customerId, userId, pageAccessToken) {
   try {
-    // Find existing conversation
+    // Find existing conversation by pageId + customerId (unified approach)
     let conversation = await Conversation.findOne({
       pageId: pageId,
       customerId: customerId,
       userId: userId
     }).sort({ lastMessageAt: -1 });
 
-    // Check if we need to create a new conversation (24-hour rule)
-    const shouldCreateNew = !conversation || 
-      Conversation.shouldCreateNewConversation(conversation.lastMessageAt);
-
-    if (shouldCreateNew) {
+    if (!conversation) {
       // Get customer profile
       const service = new FacebookConversationService(pageAccessToken, userId, pageId);
       const profileResult = await service.fetcher.fetchUserProfile(customerId);
       
       const customerProfile = profileResult.success ? profileResult.data : {};
       
-      // Create new conversation
+      // Create new conversation with webhook format ID
       conversation = new Conversation({
         conversationId: `${pageId}_${customerId}_${Date.now()}`, // Generate unique ID
         pageId: pageId,
@@ -196,6 +226,9 @@ async function findOrCreateConversation(pageId, customerId, userId, pageAccessTo
       await conversation.save();
       console.log('Created new conversation:', conversation.conversationId);
     } else {
+      // Update existing conversation's last message time
+      conversation.lastMessageAt = new Date();
+      await conversation.save();
       console.log('Using existing conversation:', conversation.conversationId);
     }
 

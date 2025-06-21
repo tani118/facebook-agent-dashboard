@@ -7,6 +7,10 @@ const conversationSchema = new mongoose.Schema({
     unique: true,
     index: true
   },
+  facebookConversationId: {
+    type: String,
+    index: true
+  },
   pageId: {
     type: String,
     required: true,

@@ -3,6 +3,7 @@ import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
 import ConversationList from './ConversationList';
 import ChatInterface from './ChatInterface';
+import socketService from '../services/socketService';
 
 const Dashboard = () => {
   const { user, logout } = useAuth();
@@ -16,11 +17,81 @@ const Dashboard = () => {
 
   useEffect(() => {
     fetchConnectedPages();
-  }, []);
+    
+    // Initialize WebSocket connection
+    if (user?.id) {
+      socketService.connect(user.id);
+      
+      // Set up real-time event handlers
+      const handleNewMessage = (data) => {
+        console.log('📩 Received new message via WebSocket:', data);
+        
+        // Update conversations list
+        setConversations(prevConversations => {
+          const updatedConversations = prevConversations.map(conv => {
+            if (conv.conversationId === data.conversationId) {
+              return {
+                ...conv,
+                lastMessageContent: data.conversation.lastMessageContent,
+                lastMessageAt: data.conversation.lastMessageAt,
+                unreadCount: data.conversation.unreadCount
+              };
+            }
+            return conv;
+          });
+          
+          // Sort by lastMessageAt (newest first)
+          return updatedConversations.sort((a, b) => 
+            new Date(b.lastMessageAt) - new Date(a.lastMessageAt)
+          );
+        });
+      };
+      
+      const handleConversationUpdated = (data) => {
+        console.log('💬 Conversation updated via WebSocket:', data);
+        
+        // Update conversations list
+        setConversations(prevConversations => {
+          const existingIndex = prevConversations.findIndex(
+            conv => conv.conversationId === data.conversationId
+          );
+          
+          if (existingIndex >= 0) {
+            const updated = [...prevConversations];
+            updated[existingIndex] = {
+              ...updated[existingIndex],
+              ...data
+            };
+            return updated.sort((a, b) => 
+              new Date(b.lastMessageAt) - new Date(a.lastMessageAt)
+            );
+          } else {
+            // New conversation, add to list
+            return [data, ...prevConversations];
+          }
+        });
+      };
+      
+      socketService.on('new-message', handleNewMessage);
+      socketService.on('conversation-updated', handleConversationUpdated);
+      
+      // Cleanup on unmount
+      return () => {
+        socketService.off('new-message', handleNewMessage);
+        socketService.off('conversation-updated', handleConversationUpdated);
+        socketService.disconnect();
+      };
+    }
+  }, [user?.id]);
 
   useEffect(() => {
     if (selectedPage) {
       fetchData();
+      
+      // Join page-specific room for real-time updates
+      if (selectedPage.pageId) {
+        socketService.joinPageRoom(selectedPage.pageId);
+      }
     }
   }, [selectedPage, activeTab]);
 
@@ -58,15 +129,63 @@ const Dashboard = () => {
   };
 
   const fetchConversations = async () => {
+    if (!selectedPage?.pageId) {
+      console.error('No page ID available');
+      return;
+    }
+
     try {
-      const response = await axios.get('/conversations', {
-        params: { pageId: selectedPage.pageId }
+      // First sync conversations from Facebook API to local database
+      const syncResponse = await axios.post('/conversations/sync', {
+        pageAccessToken: selectedPage.pageAccessToken,
+        pageId: selectedPage.pageId,
+        limit: 25
       });
+
+      if (syncResponse.data.success) {
+        console.log('Conversations synced:', syncResponse.data.message);
+      }
+
+      // Then fetch conversations from local database
+      const response = await axios.get('/conversations', {
+        params: { 
+          pageId: selectedPage.pageId,
+          limit: 25
+        }
+      });
+      
       if (response.data.success) {
-        setConversations(response.data.data.conversations || []);
+        // Sort conversations by lastMessageAt in descending order (newest first)
+        const sortedConversations = (response.data.data.conversations || [])
+          .sort((a, b) => new Date(b.lastMessageAt) - new Date(a.lastMessageAt));
+        setConversations(sortedConversations);
       }
     } catch (error) {
       console.error('Error fetching conversations:', error);
+      // Fallback to direct Facebook API if local API fails
+      try {
+        const fallbackResponse = await axios.get(`/facebook/conversations/${selectedPage.pageId}`, {
+          params: { 
+            pageAccessToken: selectedPage.pageAccessToken,
+            limit: 25
+          }
+        });
+        if (fallbackResponse.data.success) {
+          // Process Facebook API data to match expected format
+          const processedConversations = (fallbackResponse.data.data.data || []).map(conv => ({
+            id: conv.id,
+            conversationId: conv.id,
+            customerName: conv.participants?.data?.find(p => p.id !== selectedPage.pageId)?.name || 'Unknown Customer',
+            lastMessageAt: conv.updated_time,
+            lastMessage: 'Click to load messages',
+            unreadCount: conv.unread_count || 0,
+            status: 'active'
+          }));
+          setConversations(processedConversations);
+        }
+      } catch (fallbackError) {
+        console.error('Fallback also failed:', fallbackError);
+      }
     }
   };
 
@@ -194,6 +313,7 @@ const Dashboard = () => {
               item={selectedItem}
               type={activeTab === 'conversations' ? 'conversation' : 'post'}
               pageId={selectedPage?.pageId}
+              pageAccessToken={selectedPage?.pageAccessToken}
             />
           ) : (
             <div className="flex-1 flex items-center justify-center text-gray-500">

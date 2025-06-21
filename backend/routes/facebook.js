@@ -153,6 +153,45 @@ router.post('/conversations/:conversationId/send', verifyToken, [
     const result = await fetcher.sendMessage(conversationId, message);
 
     if (result.success) {
+      // Emit real-time update for outgoing message
+      if (global.io) {
+        const userId = req.user.id; // From auth middleware
+        
+        // Find the conversation to get details
+        const Conversation = require('../models/Conversation');
+        const conversation = await Conversation.findOne({
+          $or: [
+            { conversationId: conversationId },
+            { facebookConversationId: conversationId }
+          ],
+          userId: userId
+        });
+
+        if (conversation) {
+          // Emit to user-specific room
+          global.io.to(`user-${userId}`).emit('new-message', {
+            conversationId: conversation.conversationId,
+            message: {
+              messageId: result.data.message_id,
+              senderId: pageId,
+              senderName: 'You',
+              content: message,
+              timestamp: Date.now(),
+              type: 'outgoing'
+            },
+            conversation: {
+              conversationId: conversation.conversationId,
+              customerName: conversation.customerName,
+              lastMessageContent: message,
+              lastMessageAt: new Date(),
+              unreadCount: 0 // Reset unread for outgoing messages
+            }
+          });
+
+          console.log(`📡 Emitted outgoing message update for conversation ${conversation.conversationId}`);
+        }
+      }
+
       res.json({
         success: true,
         message: 'Message sent successfully',

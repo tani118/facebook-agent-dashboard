@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
+import socketService from '../services/socketService';
 
-const ChatInterface = ({ item, type, pageId }) => {
+const ChatInterface = ({ item, type, pageId, pageAccessToken }) => {
   const [messages, setMessages] = useState([]);
   const [comments, setComments] = useState([]);
   const [newMessage, setNewMessage] = useState('');
@@ -13,6 +14,49 @@ const ChatInterface = ({ item, type, pageId }) => {
     if (item) {
       if (type === 'conversation') {
         fetchMessages();
+        
+        // Set up real-time message handler for this conversation
+        const handleNewMessage = (data) => {
+          if (data.conversationId === item.conversationId || data.conversationId === item.id) {
+            console.log('📩 Received new message for current conversation:', data);
+            
+            // Add the new message to the current messages
+            setMessages(prevMessages => {
+              // Check if message already exists to avoid duplicates
+              const messageExists = prevMessages.some(msg => 
+                msg.messageId === data.message.messageId || 
+                msg.id === data.message.messageId
+              );
+              
+              if (!messageExists) {
+                const newMsg = {
+                  messageId: data.message.messageId,
+                  senderId: data.message.senderId,
+                  senderName: data.message.senderName,
+                  message: data.message.content,
+                  content: data.message.content,
+                  timestamp: data.message.timestamp,
+                  created_time: data.message.timestamp,
+                  type: data.message.type
+                };
+                
+                // Insert in chronological order
+                const updated = [...prevMessages, newMsg];
+                return updated.sort((a, b) => 
+                  new Date(a.timestamp || a.created_time) - new Date(b.timestamp || b.created_time)
+                );
+              }
+              
+              return prevMessages;
+            });
+          }
+        };
+        
+        socketService.on('new-message', handleNewMessage);
+        
+        return () => {
+          socketService.off('new-message', handleNewMessage);
+        };
       } else {
         fetchComments();
       }
@@ -27,17 +71,84 @@ const ChatInterface = ({ item, type, pageId }) => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
+  const formatTime = (timestamp) => {
+    if (!timestamp) return '';
+    
+    const date = new Date(timestamp);
+    if (isNaN(date.getTime())) return '';
+    
+    const now = new Date();
+    const diffInHours = (now - date) / (1000 * 60 * 60);
+    
+    if (diffInHours < 1) {
+      return 'Just now';
+    } else if (diffInHours < 24) {
+      return `${Math.floor(diffInHours)}h ago`;
+    } else if (diffInHours < 168) { // 7 days
+      return `${Math.floor(diffInHours / 24)}d ago`;
+    } else {
+      return date.toLocaleDateString();
+    }
+  };
+
   const fetchMessages = async () => {
-    if (!item.id) return;
+    if (!item.id && !item.conversationId) {
+      console.error('Missing conversation ID');
+      return;
+    }
     
     setLoading(true);
     try {
-      const response = await axios.get(`/facebook/messages/${item.id}`);
+      const conversationId = item.conversationId || item.id;
+      
+      // First try to sync messages from Facebook API
+      if (pageAccessToken && pageId) {
+        try {
+          await axios.post(`/conversations/${conversationId}/sync-messages`, {
+            pageAccessToken: pageAccessToken,
+            pageId: pageId,
+            limit: 25
+          });
+        } catch (syncError) {
+          console.log('Sync failed, continuing with local data:', syncError.message);
+        }
+      }
+
+      // Then fetch messages from local database
+      const response = await axios.get(`/conversations/${conversationId}/messages`, {
+        params: {
+          pageId: pageId,
+          limit: 25
+        }
+      });
+      
       if (response.data.success) {
-        setMessages(response.data.data.data || []);
+        // Sort messages by timestamp in ascending order (oldest first for chat display)
+        const sortedMessages = (response.data.data.messages || [])
+          .sort((a, b) => new Date(a.timestamp || a.created_time) - new Date(b.timestamp || b.created_time));
+        setMessages(sortedMessages);
       }
     } catch (error) {
       console.error('Error fetching messages:', error);
+      // Fallback to direct Facebook API
+      if (pageAccessToken) {
+        try {
+          const fallbackResponse = await axios.get(`/facebook/conversations/${conversationId}/messages`, {
+            params: {
+              pageAccessToken: pageAccessToken,
+              limit: 25
+            }
+          });
+          if (fallbackResponse.data.success) {
+            // Sort Facebook API messages by timestamp (oldest first)
+            const sortedMessages = (fallbackResponse.data.data.data || [])
+              .sort((a, b) => new Date(a.created_time) - new Date(b.created_time));
+            setMessages(sortedMessages);
+          }
+        } catch (fallbackError) {
+          console.error('Fallback also failed:', fallbackError);
+        }
+      }
     } finally {
       setLoading(false);
     }
@@ -60,24 +171,57 @@ const ChatInterface = ({ item, type, pageId }) => {
   };
 
   const handleSendMessage = async () => {
-    if (!newMessage.trim() || sending) return;
+    if (!newMessage.trim() || sending || !pageAccessToken) return;
 
     setSending(true);
+    const messageText = newMessage.trim();
+    
     try {
       if (type === 'conversation') {
-        const response = await axios.post('/facebook/send-message', {
-          conversationId: item.id,
-          message: newMessage
+        // Clear input immediately for better UX
+        setNewMessage('');
+        
+        // Add optimistic message update (will be confirmed via WebSocket)
+        const optimisticMessage = {
+          messageId: `temp-${Date.now()}`,
+          senderId: pageId,
+          senderName: 'You',
+          message: messageText,
+          content: messageText,
+          timestamp: new Date().toISOString(),
+          type: 'outgoing',
+          pending: true
+        };
+        
+        setMessages(prevMessages => {
+          const updated = [...prevMessages, optimisticMessage];
+          return updated.sort((a, b) => 
+            new Date(a.timestamp || a.created_time) - new Date(b.timestamp || b.created_time)
+          );
+        });
+        
+        const response = await axios.post(`/facebook/conversations/${item.id}/send`, {
+          message: messageText,
+          pageAccessToken: pageAccessToken,
+          pageId: pageId
         });
         
         if (response.data.success) {
-          setNewMessage('');
-          fetchMessages(); // Refresh messages
+          // Remove the optimistic message as the real one will come via WebSocket
+          setMessages(prevMessages => 
+            prevMessages.filter(msg => msg.messageId !== optimisticMessage.messageId)
+          );
+        } else {
+          // Remove optimistic message on failure
+          setMessages(prevMessages => 
+            prevMessages.filter(msg => msg.messageId !== optimisticMessage.messageId)
+          );
+          setNewMessage(messageText); // Restore the message
         }
       } else {
         // For posts, we'll reply to the post itself (or could be modified to reply to specific comments)
         const response = await axios.post(`/posts/${pageId}/comments/${comments[0]?.id || item.id}/reply`, {
-          message: newMessage
+          message: messageText
         });
         
         if (response.data.success) {
@@ -87,6 +231,14 @@ const ChatInterface = ({ item, type, pageId }) => {
       }
     } catch (error) {
       console.error('Error sending message:', error);
+      
+      // On error, restore the message and remove optimistic update
+      if (type === 'conversation') {
+        setMessages(prevMessages => 
+          prevMessages.filter(msg => !msg.pending)
+        );
+        setNewMessage(messageText);
+      }
     } finally {
       setSending(false);
     }
@@ -110,10 +262,6 @@ const ChatInterface = ({ item, type, pageId }) => {
     } finally {
       setSending(false);
     }
-  };
-
-  const formatTime = (timestamp) => {
-    return new Date(timestamp).toLocaleString();
   };
 
   if (!item) {
@@ -168,27 +316,44 @@ const ChatInterface = ({ item, type, pageId }) => {
                   <p>No messages in this conversation yet</p>
                 </div>
               ) : (
-                messages.map((message, index) => (
+                messages.map((message, index) => {
+                // Handle both local database and Facebook API message formats
+                const isFromPage = message.from?.id === pageId || 
+                                  message.senderId === pageId || 
+                                  message.senderType === 'page';
+                
+                const messageText = message.message || message.content || message.text;
+                const messageTime = message.created_time || message.timestamp || message.createdAt;
+                const senderName = message.from?.name || message.senderName || 
+                                 (isFromPage ? 'You' : 'Customer');
+
+                return (
                   <div
-                    key={message.id || index}
-                    className={`flex ${message.from?.id === pageId ? 'justify-end' : 'justify-start'}`}
+                    key={message.id || message._id || index}
+                    className={`flex ${isFromPage ? 'justify-end' : 'justify-start'}`}
                   >
-                    <div
-                      className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
-                        message.from?.id === pageId
-                          ? 'bg-blue-500 text-white'
-                          : 'bg-gray-200 text-gray-900'
-                      }`}
-                    >
-                      <p className="text-sm">{message.message}</p>
-                      <p className={`text-xs mt-1 ${
-                        message.from?.id === pageId ? 'text-blue-100' : 'text-gray-500'
-                      }`}>
-                        {formatTime(message.created_time)}
-                      </p>
+                    <div className={`max-w-xs lg:max-w-md ${!isFromPage ? 'mr-auto' : 'ml-auto'}`}>
+                      {!isFromPage && (
+                        <p className="text-xs text-gray-500 mb-1 px-1">{senderName}</p>
+                      )}
+                      <div
+                        className={`px-4 py-2 rounded-lg ${
+                          isFromPage
+                            ? 'bg-blue-500 text-white rounded-br-sm'
+                            : 'bg-gray-200 text-gray-900 rounded-bl-sm'
+                        }`}
+                      >
+                        <p className="text-sm whitespace-pre-wrap">{messageText}</p>
+                        <p className={`text-xs mt-1 ${
+                          isFromPage ? 'text-blue-100' : 'text-gray-500'
+                        }`}>
+                          {formatTime(messageTime)}
+                        </p>
+                      </div>
                     </div>
                   </div>
-                ))
+                );
+              })
               )
             ) : (
               // Comments

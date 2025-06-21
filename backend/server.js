@@ -4,6 +4,8 @@ const cors = require('cors');
 const bodyParser = require('body-parser');
 const session = require('express-session');
 const MongoStore = require('connect-mongo');
+const { createServer } = require('http');
+const { Server } = require('socket.io');
 const connectDB = require('./config/database');
 
 // Import routes
@@ -15,9 +17,25 @@ const facebookAuthRoutes = require('./routes/facebookAuth');
 const postsRoutes = require('./routes/posts');
 
 const app = express();
+const server = createServer(app);
+
+// Setup Socket.IO with CORS
+const io = new Server(server, {
+  cors: {
+    origin: [
+      process.env.FRONTEND_URL || 'http://localhost:5173',
+      'http://localhost:5174',
+      'http://localhost:5175'
+    ],
+    credentials: true
+  }
+});
 
 // Connect to MongoDB
 connectDB();
+
+// Store Socket.IO instance globally for use in routes
+global.io = io;
 
 // Middleware
 app.use(cors({
@@ -96,16 +114,38 @@ app.use((error, req, res, next) => {
 
 const PORT = process.env.PORT || 5000;
 
-const server = app.listen(PORT, () => {
+// Socket.IO connection handling
+io.on('connection', (socket) => {
+  console.log('🔌 Client connected:', socket.id);
+  
+  // Join user to their specific room for targeted updates
+  socket.on('join-user-room', (userId) => {
+    socket.join(`user-${userId}`);
+    console.log(`👤 User ${userId} joined their room`);
+  });
+  
+  // Join user to page-specific room for page updates
+  socket.on('join-page-room', (pageId) => {
+    socket.join(`page-${pageId}`);
+    console.log(`📄 Joined page room: ${pageId}`);
+  });
+  
+  socket.on('disconnect', () => {
+    console.log('🔌 Client disconnected:', socket.id);
+  });
+});
+
+const httpServer = server.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`🔗 API Base URL: http://localhost:${PORT}/api`);
+  console.log(`⚡ WebSocket enabled for real-time updates`);
 });
 
 // Graceful shutdown
 process.on('SIGTERM', () => {
   console.log('SIGTERM received. Shutting down gracefully...');
-  server.close(() => {
+  httpServer.close(() => {
     console.log('💤 Process terminated');
     process.exit(0);
   });
@@ -113,7 +153,7 @@ process.on('SIGTERM', () => {
 
 process.on('SIGINT', () => {
   console.log('SIGINT received. Shutting down gracefully...');
-  server.close(() => {
+  httpServer.close(() => {
     console.log('💤 Process terminated');
     process.exit(0);
   });

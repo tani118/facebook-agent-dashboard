@@ -9,7 +9,11 @@ const ConversationList = ({
   loading 
 }) => {
   const formatTime = (timestamp) => {
+    if (!timestamp) return 'Invalid date';
+    
     const date = new Date(timestamp);
+    if (isNaN(date.getTime())) return 'Invalid date';
+    
     const now = new Date();
     const diffInHours = (now - date) / (1000 * 60 * 60);
     
@@ -20,6 +24,39 @@ const ConversationList = ({
     } else {
       return date.toLocaleDateString();
     }
+  };
+
+  const getCustomerName = (conversation) => {
+    // For local database conversations
+    if (conversation.customerName) {
+      return conversation.customerName;
+    }
+    
+    // For Facebook API conversations
+    if (conversation.participants?.data) {
+      const customer = conversation.participants.data.find(p => p.id !== conversation.pageId);
+      return customer?.name || 'Unknown Customer';
+    }
+    
+    return 'Unknown Customer';
+  };
+
+  const getLastMessage = (conversation) => {
+    return conversation.lastMessage || 
+           conversation.lastMessageContent || 
+           'No messages yet';
+  };
+
+  const getLastMessageTime = (conversation) => {
+    return conversation.lastMessageAt || 
+           conversation.updated_time || 
+           conversation.createdAt;
+  };
+
+  const getUnreadCount = (conversation) => {
+    return conversation.unreadCount || 
+           conversation.unread_count || 
+           0;
   };
 
   const truncateText = (text, maxLength = 50) => {
@@ -70,20 +107,20 @@ const ConversationList = ({
             <div className="flex items-start space-x-3">
               <div className="flex-shrink-0">
                 <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center text-white font-medium">
-                  {conversation.customerName?.charAt(0) || '?'}
+                  {getCustomerName(conversation).charAt(0).toUpperCase()}
                 </div>
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between">
                   <p className="text-sm font-medium text-gray-900 truncate">
-                    {conversation.customerName || 'Unknown Customer'}
+                    {getCustomerName(conversation)}
                   </p>
                   <p className="text-xs text-gray-500">
-                    {formatTime(conversation.lastMessageAt || conversation.createdAt)}
+                    {formatTime(getLastMessageTime(conversation))}
                   </p>
                 </div>
                 <p className="text-sm text-gray-600 truncate">
-                  {truncateText(conversation.lastMessage || 'No messages yet')}
+                  {truncateText(getLastMessage(conversation))}
                 </p>
                 <div className="flex items-center space-x-2 mt-1">
                   <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
@@ -95,9 +132,9 @@ const ConversationList = ({
                   }`}>
                     {conversation.status || 'pending'}
                   </span>
-                  {conversation.unreadCount > 0 && (
+                  {getUnreadCount(conversation) > 0 && (
                     <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                      {conversation.unreadCount} unread
+                      {getUnreadCount(conversation)} unread
                     </span>
                   )}
                 </div>

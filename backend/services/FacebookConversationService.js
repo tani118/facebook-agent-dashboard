@@ -43,9 +43,10 @@ class FacebookConversationService {
 
           if (!customerId) continue;
 
-          // Check if conversation exists
+          // Check if conversation exists by pageId + customerId (unified approach)
           let conversation = await Conversation.findOne({
-            conversationId: fbConversation.id,
+            pageId: this.pageId,
+            customerId: customerId,
             userId: this.userId
           });
 
@@ -65,12 +66,15 @@ class FacebookConversationService {
               unreadCount: fbConversation.unread_count || 0
             });
           } else {
-            // Update existing conversation
+            // Update existing conversation with Facebook API data but keep the original conversationId
             conversation.lastMessageAt = new Date(fbConversation.updated_time);
             conversation.unreadCount = fbConversation.unread_count || 0;
             if (customerName !== 'Unknown') {
               conversation.customerName = customerName;
             }
+            
+            // Store the Facebook conversation ID for API calls but don't change primary conversationId
+            conversation.facebookConversationId = fbConversation.id;
           }
 
           await conversation.save();
@@ -107,11 +111,19 @@ class FacebookConversationService {
    */
   async syncMessages(conversationId, limit = 25) {
     try {
-      // Find local conversation
-      const conversation = await Conversation.findOne({
+      // Find local conversation by conversationId OR by pageId + customerId
+      let conversation = await Conversation.findOne({
         conversationId: conversationId,
         userId: this.userId
       });
+
+      // If not found by conversationId, try to find by Facebook conversation ID
+      if (!conversation) {
+        conversation = await Conversation.findOne({
+          facebookConversationId: conversationId,
+          userId: this.userId
+        });
+      }
 
       if (!conversation) {
         return {
@@ -120,7 +132,9 @@ class FacebookConversationService {
         };
       }
 
-      const result = await this.fetcher.fetchMessages(conversationId, limit);
+      // Use Facebook conversation ID for API calls if available, otherwise use the conversationId
+      const fbConversationId = conversation.facebookConversationId || conversationId;
+      const result = await this.fetcher.fetchMessages(fbConversationId, limit);
       
       if (!result.success) {
         return {
@@ -203,8 +217,32 @@ class FacebookConversationService {
    */
   async sendMessage(conversationId, messageContent) {
     try {
+      // Find local conversation by conversationId OR by pageId + customerId
+      let conversation = await Conversation.findOne({
+        conversationId: conversationId,
+        userId: this.userId
+      });
+
+      // If not found by conversationId, try to find by Facebook conversation ID
+      if (!conversation) {
+        conversation = await Conversation.findOne({
+          facebookConversationId: conversationId,
+          userId: this.userId
+        });
+      }
+
+      if (!conversation) {
+        return {
+          success: false,
+          error: 'Conversation not found'
+        };
+      }
+
+      // Use Facebook conversation ID for API calls if available, otherwise use the conversationId
+      const fbConversationId = conversation.facebookConversationId || conversationId;
+      
       // Send message via Facebook API
-      const result = await this.fetcher.sendMessage(conversationId, messageContent);
+      const result = await this.fetcher.sendMessage(fbConversationId, messageContent);
       
       if (!result.success) {
         return {
@@ -213,18 +251,12 @@ class FacebookConversationService {
         };
       }
 
-      // Find local conversation
-      const conversation = await Conversation.findOne({
-        conversationId: conversationId,
-        userId: this.userId
-      });
-
-      if (conversation) {
-        // Save message to local database
+      if (result.success && conversation) {
+        // Save message to local database using the unified conversation ID
         const message = new Message({
           messageId: result.data.id || `local_${Date.now()}`,
-          conversationId: conversationId,
-          facebookConversationId: conversationId,
+          conversationId: conversation.conversationId, // Use unified conversation ID
+          facebookConversationId: fbConversationId,
           pageId: this.pageId,
           userId: this.userId,
           senderId: this.pageId,
