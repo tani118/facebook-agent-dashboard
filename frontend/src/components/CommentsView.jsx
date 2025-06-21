@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import socketService from '../services/socketService';
 
 const CommentsView = ({ selectedPage, pageAccessToken }) => {
   const [commentsData, setCommentsData] = useState(null);
@@ -10,10 +11,30 @@ const CommentsView = ({ selectedPage, pageAccessToken }) => {
   const [showReplyModal, setShowReplyModal] = useState(false);
   const [showPrivateModal, setShowPrivateModal] = useState(false);
   const [sending, setSending] = useState(false);
+  const [newCommentNotification, setNewCommentNotification] = useState('');
 
   useEffect(() => {
     if (selectedPage && pageAccessToken) {
       fetchAllComments();
+      
+      // Set up real-time comment notifications
+      const handleNewComment = (data) => {
+        console.log('📩 New comment/reply received:', data);
+        setNewCommentNotification(data.message);
+        
+        // Auto-refresh comments after a short delay
+        setTimeout(() => {
+          fetchAllComments();
+          setNewCommentNotification('');
+        }, 2000);
+      };
+      
+      socketService.on('new-comment', handleNewComment);
+      
+      // Cleanup
+      return () => {
+        socketService.off('new-comment', handleNewComment);
+      };
     }
   }, [selectedPage, pageAccessToken]);
 
@@ -137,12 +158,28 @@ const CommentsView = ({ selectedPage, pageAccessToken }) => {
 
   return (
     <div className="bg-white rounded-lg shadow p-6">
+      {/* New Comment Notification */}
+      {newCommentNotification && (
+        <div className="mb-4 p-3 bg-blue-100 border border-blue-400 text-blue-700 rounded-lg">
+          <div className="flex items-center">
+            <span className="mr-2">🔔</span>
+            <span>{newCommentNotification}</span>
+            <button 
+              onClick={() => setNewCommentNotification('')}
+              className="ml-auto text-blue-500 hover:text-blue-700"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="mb-6">
         <h2 className="text-xl font-semibold text-gray-800 mb-2">Comments Overview</h2>
         <div className="flex gap-6 text-sm text-gray-600">
-          <span>👥 {commentsData.totalUsers} users</span>
-          <span>💬 {commentsData.totalComments} comments</span>
-          <span>📄 {commentsData.totalPosts} posts</span>
+          <span>👥 {commentsData?.totalUsers || 0} users</span>
+          <span>💬 {commentsData?.totalComments || 0} comments</span>
+          <span>📄 {commentsData?.totalPosts || 0} posts</span>
         </div>
       </div>
 
@@ -175,14 +212,24 @@ const CommentsView = ({ selectedPage, pageAccessToken }) => {
             {/* User's Comments */}
             <div className="space-y-3">
               {userGroup.comments.map((comment) => (
-                <div key={comment.commentId} className="bg-gray-50 rounded p-3">
+                <div 
+                  key={comment.commentId} 
+                  className={`rounded p-3 ${comment.isReply ? 'bg-blue-50 ml-6 border-l-4 border-blue-200' : 'bg-gray-50'}`}
+                >
                   <div className="flex justify-between items-start mb-2">
                     <div className="flex-1">
+                      {comment.isReply && (
+                        <div className="text-xs text-blue-600 mb-1 flex items-center">
+                          <span className="mr-1">↳</span>
+                          <span>Reply to comment</span>
+                        </div>
+                      )}
                       <p className="text-gray-800 mb-2">{comment.message}</p>
                       <div className="text-xs text-gray-500 mb-2">
                         <span>📅 {formatDate(comment.createdTime)}</span>
                         {comment.likeCount > 0 && <span className="ml-3">👍 {comment.likeCount}</span>}
                         {comment.replyCount > 0 && <span className="ml-3">💬 {comment.replyCount}</span>}
+                        {comment.isReply && <span className="ml-3 text-blue-600">🔗 Reply</span>}
                       </div>
                       <div className="text-xs text-gray-400 bg-white rounded p-2 border">
                         <strong>On post:</strong> {truncateText(comment.postMessage, 80)}

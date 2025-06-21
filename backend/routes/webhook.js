@@ -395,11 +395,37 @@ async function handleCommentEvent(changeValue, pageId) {
     pageId,
     commentId: changeValue.comment_id,
     postId: changeValue.post_id,
-    verb: changeValue.verb // 'add', 'edit', 'remove'
+    verb: changeValue.verb, // 'add', 'edit', 'remove'
+    parentId: changeValue.parent_id // This indicates if it's a reply
   });
 
-  // You can implement comment handling here
-  // This could create conversations for comment management
+  // Handle new comments/replies
+  if (changeValue.verb === 'add') {
+    try {
+      // Find users who have this page connected
+      const users = await User.find({ 'facebookPages.pageId': pageId });
+      
+      if (users.length > 0) {
+        // Emit real-time update to all connected users for this page
+        if (global.io) {
+          users.forEach(user => {
+            global.io.to(`user-${user._id}`).emit('new-comment', {
+              pageId: pageId,
+              commentId: changeValue.comment_id,
+              postId: changeValue.post_id,
+              parentId: changeValue.parent_id,
+              isReply: !!changeValue.parent_id,
+              message: 'New comment/reply received - refresh comments to see latest updates'
+            });
+          });
+        }
+        
+        console.log(`Notified ${users.length} users about new comment/reply`);
+      }
+    } catch (error) {
+      console.error('Error handling comment event:', error);
+    }
+  }
 }
 
 // Handle post events

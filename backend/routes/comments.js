@@ -54,16 +54,41 @@ router.get('/:pageId/all', verifyToken, async (req, res) => {
         );
 
         if (commentsResult.success && commentsResult.data.data) {
-          // Add post info to each comment
-          const commentsWithPostInfo = commentsResult.data.data.map(comment => ({
-            ...comment,
+          // Process comments and their replies
+          const processCommentsRecursively = (comments, postInfo) => {
+            const processedComments = [];
+            
+            comments.forEach(comment => {
+              // Add the main comment
+              processedComments.push({
+                ...comment,
+                ...postInfo
+              });
+              
+              // Add any replies to this comment
+              if (comment.comments && comment.comments.data) {
+                const replies = comment.comments.data.map(reply => ({
+                  ...reply,
+                  ...postInfo,
+                  parentCommentId: comment.id,
+                  isReply: true
+                }));
+                processedComments.push(...replies);
+              }
+            });
+            
+            return processedComments;
+          };
+
+          const postInfo = {
             postId: post.id,
             postMessage: post.message || 'No message',
             postCreatedTime: post.created_time,
             postUrl: `https://facebook.com/${post.id}`
-          }));
-          
-          allComments.push(...commentsWithPostInfo);
+          };
+
+          const commentsWithReplies = processCommentsRecursively(commentsResult.data.data, postInfo);
+          allComments.push(...commentsWithReplies);
         }
       } catch (error) {
         console.error(`Error fetching comments for post ${post.id}:`, error);

@@ -58,12 +58,12 @@ class FacebookPostCommentsFetcher {
         access_token: this.pageAccessToken,
         limit: limit,
         order: order,
-        fields: 'id,message,created_time,from,attachment,like_count,comment_count,parent,user_likes,can_reply_privately'
+        fields: 'id,message,created_time,from,attachment,like_count,comment_count,parent,user_likes,can_reply_privately,permalink_url'
       };
 
-      // Include comment replies if requested
+      // Include comment replies if requested with proper syntax
       if (includeReplies) {
-        params.fields += ',comments{id,message,created_time,from,attachment,like_count,parent}';
+        params.fields += ',comments.limit(50){id,message,created_time,from,attachment,like_count,parent,permalink_url}';
       }
 
       const response = await axios.get(url, { params });
