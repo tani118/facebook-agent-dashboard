@@ -289,10 +289,12 @@ const Dashboard = () => {
       {/* Main Content */}
       <div className="flex flex-1 overflow-hidden">
         {/* Conversation & Comments List Sidebar */}
-        <div className={`${sidebarVisible ? 'w-80' : 'w-0'} border-r flex flex-col overflow-hidden transition-all duration-300`}>
+        <div className={`${sidebarVisible ? 'w-80 opacity-100' : 'w-0 opacity-0'} border-r flex flex-col overflow-hidden transition-all duration-300`}>
           {/* Header */}
           <div className="flex justify-between items-center px-4 py-4 border-b border-gray-200 bg-white">
-            <h2 className="text-xl font-medium">Conversations</h2>
+            <div className="flex items-center">
+              <h2 className="text-xl font-medium ml-7">Conversations</h2>
+            </div>
             <button
               onClick={fetchData}
               disabled={refreshing}
@@ -314,16 +316,30 @@ const Dashboard = () => {
           </div>
         </div>
 
+        {/* Sidebar Toggle Button */}
+        <div className={`fixed ${sidebarVisible ? 'left-[96px]' : 'left-[24px]'} top-[1.15rem] z-20 transition-all duration-300`}>
+          <button
+            onClick={() => setSidebarVisible(!sidebarVisible)}
+            className="text-gray-600 hover:text-gray-800 bg-white border border-gray-200 shadow-sm p-1.5 hover:bg-gray-100 rounded"
+            title={sidebarVisible ? "Hide sidebar" : "Show sidebar"}
+          >
+            <span className="text-xl font-semibold">{sidebarVisible ? "←" : "≡"}</span>
+          </button>
+        </div>
+
         {/* Main Chat Area */}
         {selectedItem ? (
           <div className="flex flex-1 overflow-hidden">
-            <UnifiedChatInterface
-              item={selectedItem}
-              type={selectedItem.type}
-              pageId={selectedPage?.pageId}
-              pageAccessToken={selectedPage?.pageAccessToken}
-              selectedPage={selectedPage}
-            />
+            <div className={`${!sidebarVisible ? 'ml-10' : ''} flex-1 flex transition-all duration-300`}>
+              <UnifiedChatInterface
+                item={selectedItem}
+                type={selectedItem.type}
+                pageId={selectedPage?.pageId}
+                pageAccessToken={selectedPage?.pageAccessToken}
+                selectedPage={selectedPage}
+                sidebarVisible={sidebarVisible}
+              />
+            </div>
             
             {/* Customer Information Panel */}
             <CustomerInformation 

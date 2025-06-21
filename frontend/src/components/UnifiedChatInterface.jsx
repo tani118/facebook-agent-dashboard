@@ -126,7 +126,7 @@ const PostHeader = ({ post }) => {
   );
 };
 
-const UnifiedChatInterface = ({ item, type, pageId, pageAccessToken, selectedPage }) => {
+const UnifiedChatInterface = ({ item, type, pageId, pageAccessToken, selectedPage, sidebarVisible }) => {
   const [messages, setMessages] = useState([]);
   const [comments, setComments] = useState([]);
   const [newMessage, setNewMessage] = useState('');
@@ -529,6 +529,15 @@ const UnifiedChatInterface = ({ item, type, pageId, pageAccessToken, selectedPag
     return false;
   };
 
+  // Get the name of the current person/customer
+  const getCurrentName = () => {
+    if (type === 'conversation') {
+      return item.customerName || `${item.customerFirstName || ''} ${item.customerLastName || ''}`.trim() || 'Unknown Customer';
+    } else {
+      return item.userName || 'Unknown User';
+    }
+  };
+
   if (!item) {
     return (
       <div className="flex-1 flex items-center justify-center">
@@ -539,30 +548,49 @@ const UnifiedChatInterface = ({ item, type, pageId, pageAccessToken, selectedPag
 
   return (
     <div className="bg-gray-50 flex-1 h-full flex flex-col">
-      {/* Header */}
-      <div className="px-8 py-4 border-b bg-white flex justify-between items-center">
-        <span className="text-xl font-semibold">
-          {type === 'conversation' 
-            ? item.customerName || 'Unknown Customer'
-            : `${item.userName || 'Unknown User'}'s Comments`
-          }
-        </span>
-        <button
-          onClick={handleRefresh}
-          className="flex items-center gap-2 px-3 py-1.5 text-sm text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded"
-          disabled={refreshing || loading}
-        >
-          <RefreshCw size={16} className={`${refreshing || loading ? 'animate-spin' : ''}`} />
-          <span>Refresh</span>
-        </button>
-      </div>
+      {/* Header - Conditional rendering based on sidebar visibility */}
+      {sidebarVisible ? (
+        <div className="px-8 py-4 border-b bg-white flex justify-between items-center">
+          <span className="text-xl font-semibold ml-7">
+            {type === 'conversation' 
+              ? item.customerName || 'Unknown Customer'
+              : `${item.userName || 'Unknown User'}'s Comments`
+            }
+          </span>
+          <button
+            onClick={handleRefresh}
+            className="flex items-center gap-2 px-3 py-1.5 text-sm text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded"
+            disabled={refreshing || loading}
+          >
+            <RefreshCw size={16} className={`${refreshing || loading ? 'animate-spin' : ''}`} />
+            <span>Refresh</span>
+          </button>
+        </div>
+      ) : (
+        <div className="px-8 py-4 border-b bg-white flex justify-between items-center">
+          <div className="flex items-center ml-12">
+            <h2 className="text-xl font-medium">{getCurrentName()}</h2>
+            <span className="text-sm text-gray-600 ml-2">
+              {type === 'conversation' ? '(Facebook DM)' : '(Facebook Post)'}
+            </span>
+          </div>
+          <button
+            onClick={handleRefresh}
+            className="flex items-center gap-2 px-3 py-1.5 text-sm text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded"
+            disabled={refreshing || loading}
+          >
+            <RefreshCw size={16} className={`${refreshing || loading ? 'animate-spin' : ''}`} />
+            <span>Refresh</span>
+          </button>
+        </div>
+      )}
 
       {/* Messages/Comments Area */}
       <div 
         ref={chatBoxRef}
         className="flex flex-col flex-1 overflow-y-auto"
       >
-        <div className="flex flex-col pt-4 px-8 pb-20">
+        <div className={`flex flex-col pt-4 ${sidebarVisible ? 'px-8' : 'px-16'} pb-20`}>
           {loading ? (
             <div className="flex justify-center w-full py-4">
               <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
@@ -697,7 +725,7 @@ const UnifiedChatInterface = ({ item, type, pageId, pageAccessToken, selectedPag
       </div>
 
       {/* Message Input */}
-      <div className="w-full max-w-[800px] self-center my-4 mx-8 mb-6">
+      <div className={`w-full max-w-[800px] self-center my-4 ${sidebarVisible ? 'mx-8' : 'mx-16'} mb-6`}>
         {/* Selected Comment for Reply indicator (only in comments mode) */}
         {type === 'comments' && selectedCommentForReply && (
           <div className="mb-2 flex items-center justify-between">
