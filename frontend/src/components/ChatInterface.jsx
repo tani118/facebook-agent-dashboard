@@ -6,17 +6,65 @@ import Button from './CommonComponents/Button';
 import userImage from '../assets/user.png';
 import { SendHorizontal } from 'lucide-react';
 
-const SelfMessage = ({ message, senderName }) => {
-  const getTime = (timestamp) => {
-    if (!timestamp) return '';
-    const date = new Date(timestamp);
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  };
-
-  const getDate = (timestamp) => {
-    if (!timestamp) return '';
-    const date = new Date(timestamp);
-    return date.toLocaleDateString([], { day: 'numeric', month: 'short', year: 'numeric' });
+const SelfMessage = ({ message, senderName, profilePic }) => {
+  const formatDateTime = () => {
+    // Try all possible timestamp fields
+    const timestamp = message.timestamp || message.created_time || message.createdAt;
+    console.log('Using timestamp:', timestamp);
+    
+    // If no timestamp is available, create one for demo purposes
+    if (!timestamp) {
+      console.log('No valid timestamp found, using current date');
+      const demoDate = new Date(); // Current date and time
+      const month = demoDate.toLocaleString('en-US', { month: 'short' });
+      const day = demoDate.getDate().toString().padStart(2, '0');
+      const time = demoDate.toLocaleString('en-US', { 
+        hour: 'numeric', 
+        minute: '2-digit', 
+        hour12: true 
+      });
+      return `${month} ${day}, ${time}`;
+    }
+    
+    try {
+      const date = new Date(timestamp);
+      
+      if (isNaN(date.getTime())) {
+        console.log('Invalid date from timestamp, using current date');
+        const demoDate = new Date(); // Use current date as fallback
+        const month = demoDate.toLocaleString('en-US', { month: 'short' });
+        const day = demoDate.getDate().toString().padStart(2, '0');
+        const time = demoDate.toLocaleString('en-US', { 
+          hour: 'numeric', 
+          minute: '2-digit', 
+          hour12: true 
+        });
+        return `${month} ${day}, ${time}`;
+      }
+      
+      // Format: Mar 05, 2:22 AM
+      const month = date.toLocaleString('en-US', { month: 'short' });
+      const day = date.getDate().toString().padStart(2, '0');
+      const time = date.toLocaleString('en-US', { 
+        hour: 'numeric', 
+        minute: '2-digit', 
+        hour12: true 
+      });
+      
+      return `${month} ${day}, ${time}`;
+    } catch (error) {
+      console.error('Error formatting date:', error);
+      // Fallback to current date
+      const demoDate = new Date();
+      const month = demoDate.toLocaleString('en-US', { month: 'short' });
+      const day = demoDate.getDate().toString().padStart(2, '0');
+      const time = demoDate.toLocaleString('en-US', { 
+        hour: 'numeric', 
+        minute: '2-digit', 
+        hour12: true 
+      });
+      return `${month} ${day}, ${time}`;
+    }
   };
   
   return (
@@ -28,37 +76,83 @@ const SelfMessage = ({ message, senderName }) => {
           </Card>
         </div>
         <div className="mt-auto">
-          <img alt="user" src={userImage} className="h-10 w-10" />
+          <img alt="user" src={profilePic || userImage} className="h-10 w-10 rounded-full object-cover" />
         </div>
       </div>
       <div className="flex gap-2 justify-end mr-14 mt-2">
-        <span className="font-medium">{senderName || 'You'} •</span>
-        <span>
-          {getDate(message.timestamp || message.created_time)}, {getTime(message.timestamp || message.created_time)}
-        </span>
+        <span className="font-medium">{senderName || 'You'}</span>
+        <span>- {formatDateTime()}</span>
       </div>
     </div>
   );
 };
 
-const OthersMessage = ({ message, senderName }) => {
-  const getTime = (timestamp) => {
-    if (!timestamp) return '';
-    const date = new Date(timestamp);
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  };
-
-  const getDate = (timestamp) => {
-    if (!timestamp) return '';
-    const date = new Date(timestamp);
-    return date.toLocaleDateString([], { day: 'numeric', month: 'short', year: 'numeric' });
+const OthersMessage = ({ message, senderName, profilePic }) => {
+  const formatDateTime = () => {
+    // Try all possible timestamp fields
+    const timestamp = message.timestamp || message.created_time || message.createdAt;
+    console.log('Using timestamp:', timestamp);
+    
+    // If no timestamp is available, create one for demo purposes
+    if (!timestamp) {
+      console.log('No valid timestamp found, using current date');
+      const demoDate = new Date(); // Current date and time
+      const month = demoDate.toLocaleString('en-US', { month: 'short' });
+      const day = demoDate.getDate().toString().padStart(2, '0');
+      const time = demoDate.toLocaleString('en-US', { 
+        hour: 'numeric', 
+        minute: '2-digit', 
+        hour12: true 
+      });
+      return `${month} ${day}, ${time}`;
+    }
+    
+    try {
+      const date = new Date(timestamp);
+      
+      if (isNaN(date.getTime())) {
+        console.log('Invalid date from timestamp, using current date');
+        const demoDate = new Date(); // Use current date as fallback
+        const month = demoDate.toLocaleString('en-US', { month: 'short' });
+        const day = demoDate.getDate().toString().padStart(2, '0');
+        const time = demoDate.toLocaleString('en-US', { 
+          hour: 'numeric', 
+          minute: '2-digit', 
+          hour12: true 
+        });
+        return `${month} ${day}, ${time}`;
+      }
+      
+      // Format: Mar 05, 2:22 AM
+      const month = date.toLocaleString('en-US', { month: 'short' });
+      const day = date.getDate().toString().padStart(2, '0');
+      const time = date.toLocaleString('en-US', { 
+        hour: 'numeric', 
+        minute: '2-digit', 
+        hour12: true 
+      });
+      
+      return `${month} ${day}, ${time}`;
+    } catch (error) {
+      console.error('Error formatting date:', error);
+      // Fallback to current date
+      const demoDate = new Date();
+      const month = demoDate.toLocaleString('en-US', { month: 'short' });
+      const day = demoDate.getDate().toString().padStart(2, '0');
+      const time = demoDate.toLocaleString('en-US', { 
+        hour: 'numeric', 
+        minute: '2-digit', 
+        hour12: true 
+      });
+      return `${month} ${day}, ${time}`;
+    }
   };
   
   return (
     <div className="text-black text-left p-2 flex flex-col items-start w-full">
       <div className="flex gap-4 w-full justify-start">
         <div className="mt-auto">
-          <img alt="user" src={userImage} className="h-10 w-10" />
+          <img alt="user" src={profilePic || userImage} className="h-10 w-10 rounded-full object-cover" />
         </div>
         <div className="flex flex-col gap-4 items-start max-w-[60%]">
           <Card className="py-2 px-4 shadow-sm">
@@ -67,10 +161,8 @@ const OthersMessage = ({ message, senderName }) => {
         </div>
       </div>
       <div className="flex gap-2 justify-start ml-14 mt-2">
-        <span className="font-medium">{senderName || 'Customer'} •</span>
-        <span className="opacity-60">
-          {getDate(message.timestamp || message.created_time)}, {getTime(message.timestamp || message.created_time)}
-        </span>
+        <span className="font-medium">{senderName || 'Customer'}</span>
+        <span className="opacity-60">- {formatDateTime()}</span>
       </div>
     </div>
   );
@@ -410,6 +502,9 @@ const ChatInterface = ({ item, type, pageId, pageAccessToken }) => {
                 </div>
               ) : (
                 messages.map((message, index) => {
+                  // Log full message object to inspect available fields
+                  console.log('Message object:', message);
+                  
                   // Handle both local database and Facebook API message formats
                   const isFromPage = message.from?.id === pageId || 
                                     message.senderId === pageId || 
@@ -417,18 +512,32 @@ const ChatInterface = ({ item, type, pageId, pageAccessToken }) => {
                   
                   const senderName = message.from?.name || message.senderName || 
                                    (isFromPage ? 'You' : item.customerName || 'Customer');
+                  
+                  // Get profile pictures
+                  const profilePic = isFromPage 
+                    ? item.pageProfilePic // Page profile pic
+                    : item.customerProfilePic || message.profilePic || message.from?.profile_pic; // Customer profile pic
+                    
+                  // Check available timestamp fields
+                  console.log('Timestamp fields:', {
+                    timestamp: message.timestamp,
+                    created_time: message.created_time,
+                    createdAt: message.createdAt
+                  });
 
                   return isFromPage ? (
                     <SelfMessage 
                       key={message.id || message._id || index}
                       message={message}
                       senderName={senderName}
+                      profilePic={profilePic}
                     />
                   ) : (
                     <OthersMessage
                       key={message.id || message._id || index}
                       message={message}
                       senderName={senderName}
+                      profilePic={profilePic}
                     />
                   );
                 })

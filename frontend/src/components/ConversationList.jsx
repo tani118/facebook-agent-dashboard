@@ -29,7 +29,7 @@ const ConversationList = ({
     if (diffInHours < 1) {
       return 'Just now';
     } else if (diffInHours < 24) {
-      return `${Math.floor(diffInHours)}h ago`;
+      return `${Math.floor(diffInHours)}h`;
     } else {
       return date.toLocaleDateString();
     }
@@ -109,7 +109,7 @@ const ConversationList = ({
               <span className="max-w-[100%] overflow-hidden text-left font-medium">
                 {getCustomerName(conversation)}
               </span>
-              <span className="text-sm opacity-70">Facebook DM</span>
+              <span className="text-sm font-medium">Facebook DM</span>
             </div>
             <span className="text-sm mb-4 opacity-60">
               {formatTime(getLastMessageTime(conversation))}
@@ -120,14 +120,6 @@ const ConversationList = ({
             <span className="text-sm opacity-60 text-left">
               {truncateText(getLastMessage(conversation))}
             </span>
-            
-            {getUnreadCount(conversation) > 0 && (
-              <div className="flex items-center mt-1">
-                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                  {getUnreadCount(conversation)} unread
-                </span>
-              </div>
-            )}
           </div>
         </div>
       ))}

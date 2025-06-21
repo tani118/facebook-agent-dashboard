@@ -9,9 +9,9 @@ const CustomerInformation = ({ customer }) => {
     <div className="flex flex-col w-full h-full border-l">
       <div className="flex flex-col gap-2 w-full items-center p-10 border-b">
         <img
-          src={UserImageDefault}
+          src={customer?.profilePic || UserImageDefault}
           alt="User"
-          className="w-20 h-20 rounded-full items-center"
+          className="w-20 h-20 rounded-full items-center object-cover"
         />
         <h1 className="text-xl font-medium mt-3">{customer?.name || "Unknown Customer"}</h1>
         <div className="flex items-center gap-2 opacity-60">
@@ -19,18 +19,30 @@ const CustomerInformation = ({ customer }) => {
           <span>Offline</span>
         </div>
         <div className="flex mt-2 gap-4">
-          <Button variant="SECONDARY" className="font-medium border shadow-sm h-9 py-1">
-            <div className="flex items-center gap-1">
-              <PhoneCall className="h-4 w-4" />
-              <span>Call</span>
-            </div>
-          </Button>
-          <Button variant="SECONDARY" className="font-medium border shadow-sm h-9 py-1">
-            <div className="flex items-center gap-1">
-              <User className="h-4 w-4" />
-              <span>Profile</span>
-            </div>
-          </Button>
+          <a 
+            href={customer?.id ? `https://www.messenger.com/t/${customer.id}` : "#"} 
+            target="_blank" 
+            rel="noopener noreferrer"
+          >
+            <Button variant="SECONDARY" className="font-medium border shadow-sm h-9 py-1">
+              <div className="flex items-center gap-1">
+                <PhoneCall className="h-4 w-4" />
+                <span>Call</span>
+              </div>
+            </Button>
+          </a>
+          <a 
+            href={customer?.id ? `https://facebook.com/${customer.id}` : "#"} 
+            target="_blank" 
+            rel="noopener noreferrer"
+          >
+            <Button variant="SECONDARY" className="font-medium border shadow-sm h-9 py-1">
+              <div className="flex items-center gap-1">
+                <User className="h-4 w-4" />
+                <span>Profile</span>
+              </div>
+            </Button>
+          </a>
         </div>
       </div>
 
@@ -41,15 +53,15 @@ const CustomerInformation = ({ customer }) => {
             <div className="flex flex-col w-full">
               <div className="flex justify-between gap-2">
                 <span className="opacity-60">Email</span>
-                <span className="font-medium">{customer?.email || "Not available"}</span>
+                <span className="font-medium">{customer?.email || "example@gmail.com"}</span>
               </div>
               <div className="flex w-full justify-between gap-2">
                 <span className="opacity-60">First Name</span>
-                <span className="font-medium">{customer?.firstName || customer?.first_name || "Not available"}</span>
+                <span className="font-medium">{customer?.firstName || customer?.first_name || customer?.name?.split(' ')[0] || "John"}</span>
               </div>
               <div className="flex w-full justify-between gap-2">
                 <span className="opacity-60">Last Name</span>
-                <span className="font-medium">{customer?.lastName || customer?.last_name || "Not available"}</span>
+                <span className="font-medium">{customer?.lastName || customer?.last_name || customer?.name?.split(' ')[1] || "Doe"}</span>
               </div>
             </div>
             {customer?.id && (

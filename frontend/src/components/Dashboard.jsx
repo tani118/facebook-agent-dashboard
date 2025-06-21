@@ -276,10 +276,12 @@ const Dashboard = () => {
             <div className="w-[20%]">
               <CustomerInformation 
                 customer={{
+                  id: selectedItem.customerId || selectedItem.senderPsid || selectedItem.senderId,
                   name: selectedItem.customerName,
                   email: selectedItem.customerEmail,
                   firstName: selectedItem.customerFirstName,
-                  lastName: selectedItem.customerLastName
+                  lastName: selectedItem.customerLastName,
+                  profilePic: selectedItem.customerProfilePic
                 }}
               />
             </div>
