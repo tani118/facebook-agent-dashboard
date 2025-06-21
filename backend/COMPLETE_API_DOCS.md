@@ -123,6 +123,79 @@ Authorization: Bearer <your_jwt_token>
 
 ---
 
+## Facebook Authentication Routes (`/api/facebook-auth`)
+
+### 1. Exchange Token
+- **POST** `/facebook-auth/exchange-token`
+- **Headers:** `Authorization: Bearer <token>`
+- **Body:**
+  ```json
+  {
+    "shortLivedToken": "short_lived_user_access_token"
+  }
+  ```
+
+### 2. Get User's Facebook Pages
+- **POST** `/facebook-auth/get-pages`
+- **Headers:** `Authorization: Bearer <token>`
+- **Body:**
+  ```json
+  {
+    "userToken": "user_access_token"
+  }
+  ```
+
+### 3. Connect Facebook Page
+- **POST** `/facebook-auth/connect-page`
+- **Headers:** `Authorization: Bearer <token>`
+- **Body:**
+  ```json
+  {
+    "pageId": "page_id",
+    "pageName": "Page Name",
+    "userToken": "user_access_token"
+  }
+  ```
+
+### 4. Disconnect Facebook Page
+- **DELETE** `/facebook-auth/disconnect-page/:pageId`
+- **Headers:** `Authorization: Bearer <token>`
+
+### 5. Get Connected Pages
+- **GET** `/facebook-auth/connected-pages`
+- **Headers:** `Authorization: Bearer <token>`
+
+### 6. Refresh Page Token
+- **POST** `/facebook-auth/refresh-page-token`
+- **Headers:** `Authorization: Bearer <token>`
+- **Body:**
+  ```json
+  {
+    "pageId": "page_id",
+    "userToken": "user_access_token"
+  }
+  ```
+
+---
+
+## Webhook Routes (`/api/webhook`)
+
+### 1. Webhook Verification (Facebook Setup)
+- **GET** `/webhook/webhook?hub.mode=subscribe&hub.verify_token=<verify_token>&hub.challenge=<challenge>`
+- **Description:** Used by Facebook to verify webhook endpoint
+
+### 2. Webhook Event Handler
+- **POST** `/webhook/webhook`
+- **Description:** Receives Facebook webhook events (messages, comments, etc.)
+- **Automatically processes:**
+  - Incoming messages
+  - Message delivery confirmations
+  - Message read receipts
+  - Postback events
+  - Comment events
+
+---
+
 ## Conversation Management Routes (`/api/conversations`)
 
 ### 1. Sync Conversations from Facebook

@@ -10,6 +10,8 @@ const connectDB = require('./config/database');
 const authRoutes = require('./routes/auth');
 const facebookRoutes = require('./routes/facebook');
 const conversationRoutes = require('./routes/conversations');
+const webhookRoutes = require('./routes/webhook');
+const facebookAuthRoutes = require('./routes/facebookAuth');
 
 const app = express();
 
@@ -44,6 +46,8 @@ app.use(session({
 app.use('/api/auth', authRoutes);
 app.use('/api/facebook', facebookRoutes);
 app.use('/api/conversations', conversationRoutes);
+app.use('/api/webhook', webhookRoutes);
+app.use('/api/facebook-auth', facebookAuthRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

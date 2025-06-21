@@ -23,7 +23,21 @@ const userSchema = new mongoose.Schema({
     required: [true, 'Password is required'],
     minlength: [6, 'Password must be at least 6 characters long'],
     select: false // Don't include password in queries by default
-  }
+  },
+  facebookPages: [{
+    pageId: String,
+    pageName: String,
+    pageAccessToken: String,
+    picture: String,
+    about: String,
+    category: String,
+    fanCount: Number,
+    website: String,
+    connectedAt: {
+      type: Date,
+      default: Date.now
+    }
+  }]
 }, {
   timestamps: true
 });
@@ -46,6 +60,40 @@ userSchema.pre('save', async function(next) {
 // Instance method to check password
 userSchema.methods.comparePassword = async function(candidatePassword) {
   return await bcrypt.compare(candidatePassword, this.password);
+};
+
+// Instance method to add Facebook page
+userSchema.methods.addFacebookPage = function(pageData) {
+  // Check if page already exists
+  const existingPageIndex = this.facebookPages.findIndex(page => page.pageId === pageData.pageId);
+  
+  if (existingPageIndex !== -1) {
+    // Update existing page
+    this.facebookPages[existingPageIndex] = {
+      ...this.facebookPages[existingPageIndex].toObject(),
+      ...pageData,
+      connectedAt: new Date()
+    };
+  } else {
+    // Add new page
+    this.facebookPages.push({
+      ...pageData,
+      connectedAt: new Date()
+    });
+  }
+  
+  return this.save();
+};
+
+// Instance method to remove Facebook page
+userSchema.methods.removeFacebookPage = function(pageId) {
+  this.facebookPages = this.facebookPages.filter(page => page.pageId !== pageId);
+  return this.save();
+};
+
+// Instance method to get Facebook page
+userSchema.methods.getFacebookPage = function(pageId) {
+  return this.facebookPages.find(page => page.pageId === pageId);
 };
 
 // Static method to find user by email
