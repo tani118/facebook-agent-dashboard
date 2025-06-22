@@ -162,10 +162,6 @@ router.get('/:pageId/all', verifyToken, async (req, res) => {
   }
 });
 
-/**
- * Reply to a specific comment publicly
- * POST /api/comments/:pageId/:commentId/reply
- */
 router.post('/:pageId/:commentId/reply', verifyToken, async (req, res) => {
   try {
     const { pageId, commentId } = req.params;
