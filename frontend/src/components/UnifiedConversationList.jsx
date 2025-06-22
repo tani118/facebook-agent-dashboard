@@ -91,12 +91,22 @@ const UnifiedConversationList = ({
       {sortedItems.map((item) => {
         if (item.type === 'conversation') {
           // Conversation Item
+          const isSelected = selectedItem && selectedItem.type !== 'comments' && (
+            selectedItem.id === item.id || 
+            selectedItem.conversationId === item.id || 
+            selectedItem.id === item.conversationId || 
+            selectedItem.conversationId === item.conversationId ||
+            selectedItem._id === item._id ||
+            selectedItem._id === item.id ||
+            selectedItem.id === item._id
+          );
+          
           return (
             <div
               key={`conv-${item.id || item._id}`}
               onClick={() => onItemSelect(item)}
               className={`flex flex-col py-5 px-4 w-full border-b cursor-pointer hover:bg-[#F6F6F6] transition-all duration-200 ${
-                selectedItem?.id === item.id || selectedItem?.conversationId === item.id ? 'bg-[#F6F6F6]' : ''
+                isSelected ? 'bg-[#F6F6F6]' : ''
               }`}
             >
               <div className="flex w-full items-center gap-3">
@@ -125,12 +135,15 @@ const UnifiedConversationList = ({
           const pageReplies = item.comments.filter(c => c.from && c.from.id === item.pageId).length;
           const latestComment = item.comments[0]; // Comments are already sorted newest first
           
+          const isSelected = selectedItem && selectedItem.type === 'comments' && 
+            selectedItem.userId === item.userId;
+          
           return (
             <div
               key={item.userId}
               onClick={() => onItemSelect({...item, type: 'comments'})}
               className={`flex flex-col py-5 px-4 w-full border-b cursor-pointer hover:bg-[#F6F6F6] transition-all duration-200 ${
-                selectedItem?.userId === item.userId ? 'bg-[#F6F6F6]' : ''
+                isSelected ? 'bg-[#F6F6F6]' : ''
               }`}
             >
               <div className="flex w-full items-center gap-3">

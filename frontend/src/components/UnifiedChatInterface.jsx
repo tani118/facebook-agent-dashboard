@@ -725,7 +725,7 @@ const UnifiedChatInterface = ({ item, type, pageId, pageAccessToken, selectedPag
       </div>
 
       {/* Message Input */}
-      <div className={`w-full max-w-[800px] self-center my-4 ${sidebarVisible ? 'mx-8' : 'mx-16'} mb-6`}>
+      <div className="w-full max-w-[800px] self-center my-4 mb-6 px-4">
         {/* Selected Comment for Reply indicator (only in comments mode) */}
         {type === 'comments' && selectedCommentForReply && (
           <div className="mb-2 flex items-center justify-between">

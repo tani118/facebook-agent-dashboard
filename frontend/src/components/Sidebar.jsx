@@ -49,12 +49,14 @@ const Sidebar = ({ activeTab }) => {
                 <div className="h-6 w-1 bg-white rounded-full"></div>
               )}
             </div>
-            <img 
-              alt={op.name} 
-              src={activeTab === op.name ? op.iconSelected : op.icon} 
-              className="h-6 w-6 cursor-pointer"
-              onClick={() => window.location.href = op.link}
-            />
+            <div className={`p-1 rounded ${activeTab === op.name ? 'bg-white' : ''}`}>
+              <img 
+                alt={op.name} 
+                src={activeTab === op.name ? op.iconSelected : op.icon} 
+                className={`h-6 w-6 cursor-pointer ${activeTab === op.name ? '' : 'filter brightness-0 invert'}`}
+                onClick={() => window.location.href = op.link}
+              />
+            </div>
           </div>
         ))}
       </div>

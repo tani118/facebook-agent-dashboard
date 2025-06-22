@@ -7,6 +7,8 @@ import CustomerInformation from './CustomerInformation';
 import FacebookPageSetup from './FacebookPageSetup';
 import Sidebar from './Sidebar';
 import socketService from '../services/socketService';
+import { ChevronLeft, Menu } from 'lucide-react';
+
 
 const Dashboard = () => {
   const { user, logout } = useAuth();
@@ -18,19 +20,20 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [sidebarVisible, setSidebarVisible] = useState(true);
+  
+  const toggleSidebar = () => {
+    setSidebarVisible(prev => !prev);
+  };
 
   useEffect(() => {
     fetchConnectedPages();
     
-    // Initialize WebSocket connection
     if (user?.id) {
       socketService.connect(user.id);
       
-      // Set up real-time event handlers
       const handleNewMessage = (data) => {
         console.log('📩 Received new message via WebSocket:', data);
         
-        // Update conversations list
         setConversations(prevConversations => {
           const updatedConversations = prevConversations.map(conv => {
             if (conv.conversationId === data.conversationId) {
@@ -44,7 +47,6 @@ const Dashboard = () => {
             return conv;
           });
           
-          // Sort by lastMessageAt (newest first)
           return updatedConversations.sort((a, b) => 
             new Date(b.lastMessageAt) - new Date(a.lastMessageAt)
           );
@@ -54,7 +56,6 @@ const Dashboard = () => {
       const handleConversationUpdated = (data) => {
         console.log('💬 Conversation updated via WebSocket:', data);
         
-        // Update conversations list
         setConversations(prevConversations => {
           const existingIndex = prevConversations.findIndex(
             conv => conv.conversationId === data.conversationId
@@ -70,7 +71,6 @@ const Dashboard = () => {
               new Date(b.lastMessageAt) - new Date(a.lastMessageAt)
             );
           } else {
-            // New conversation, add to list
             return [data, ...prevConversations];
           }
         });
@@ -79,7 +79,6 @@ const Dashboard = () => {
       socketService.on('new-message', handleNewMessage);
       socketService.on('conversation-updated', handleConversationUpdated);
       
-      // Cleanup on unmount
       return () => {
         socketService.off('new-message', handleNewMessage);
         socketService.off('conversation-updated', handleConversationUpdated);
@@ -92,20 +91,17 @@ const Dashboard = () => {
     if (selectedPage) {
       fetchData();
       
-      // Join page-specific room for real-time updates
       if (selectedPage.pageId) {
         socketService.joinPageRoom(selectedPage.pageId);
       }
     }
   }, [selectedPage]);
   
-  // Set up real-time comment notification
   useEffect(() => {
     if (selectedPage && selectedPage.pageId) {
       const handleNewComment = (data) => {
         console.log('📩 New comment/reply received:', data);
         
-        // Auto-refresh comments after a short delay
         setTimeout(() => {
           if (activeTab === 'comments') {
             fetchComments();
@@ -143,7 +139,6 @@ const Dashboard = () => {
     setLoading(true);
     setRefreshing(true);
     try {
-      // Fetch both conversations and comments
       await Promise.all([
         fetchConversations(),
         fetchComments()
@@ -163,7 +158,6 @@ const Dashboard = () => {
     }
 
     try {
-      // First sync conversations from Facebook API to local database
       const syncResponse = await axios.post('/conversations/sync', {
         pageAccessToken: selectedPage.pageAccessToken,
         pageId: selectedPage.pageId,
@@ -174,7 +168,6 @@ const Dashboard = () => {
         console.log('Conversations synced:', syncResponse.data.message);
       }
 
-      // Then fetch conversations from local database
       const response = await axios.get('/conversations', {
         params: { 
           pageId: selectedPage.pageId,
@@ -183,14 +176,12 @@ const Dashboard = () => {
       });
       
       if (response.data.success) {
-        // Sort conversations by lastMessageAt in descending order (newest first)
         const sortedConversations = (response.data.data.conversations || [])
           .sort((a, b) => new Date(b.lastMessageAt) - new Date(a.lastMessageAt));
         setConversations(sortedConversations);
       }
     } catch (error) {
       console.error('Error fetching conversations:', error);
-      // Fallback to direct Facebook API if local API fails
       try {
         const fallbackResponse = await axios.get(`/facebook/conversations/${selectedPage.pageId}`, {
           params: { 
@@ -199,7 +190,6 @@ const Dashboard = () => {
           }
         });
         if (fallbackResponse.data.success) {
-          // Process Facebook API data to match expected format
           const processedConversations = (fallbackResponse.data.data.data || []).map(conv => ({
             id: conv.id,
             conversationId: conv.id,
@@ -238,7 +228,6 @@ const Dashboard = () => {
       if (response.data.success) {
         console.log('Comments data received:', response.data.data);
         
-        // Filter out page admin from user list - only show actual customers
         const filteredData = {
           ...response.data.data,
           userComments: response.data.data.userComments.filter(userGroup => 
@@ -246,7 +235,6 @@ const Dashboard = () => {
           )
         };
         
-        // Add pageId to each user group for later reference
         const userCommentsWithPageId = filteredData.userComments.map(userGroup => ({
           ...userGroup,
           pageId: selectedPage.pageId
@@ -274,14 +262,13 @@ const Dashboard = () => {
     );
   }
 
-  // If no pages are connected, show FacebookPageSetup
   if (!loading && connectedPages.length === 0) {
     return <FacebookPageSetup onPageConnected={fetchConnectedPages} />;
   }
 
   return (
     <div className="flex h-screen w-screen overflow-hidden">
-      {/* Sidebar */}
+      {/* App Sidebar */}
       <div className="flex flex-col w-16 bg-primary">
         <Sidebar activeTab="chatportal" />
       </div>
@@ -289,11 +276,11 @@ const Dashboard = () => {
       {/* Main Content */}
       <div className="flex flex-1 overflow-hidden">
         {/* Conversation & Comments List Sidebar */}
-        <div className={`${sidebarVisible ? 'w-80 opacity-100' : 'w-0 opacity-0'} border-r flex flex-col overflow-hidden transition-all duration-300`}>
+        <div className={`${sidebarVisible ? 'w-80' : 'w-0'} border-r flex flex-col overflow-hidden transition-all duration-300 ease-in-out`} style={{ marginLeft: '0px' }}>
           {/* Header */}
           <div className="flex justify-between items-center px-4 py-4 border-b border-gray-200 bg-white">
             <div className="flex items-center">
-              <h2 className="text-xl font-medium ml-7">Conversations</h2>
+              <h2 className="text-xl font-medium ml-14">Conversations</h2>
             </div>
             <button
               onClick={fetchData}
@@ -316,29 +303,30 @@ const Dashboard = () => {
           </div>
         </div>
 
-        {/* Sidebar Toggle Button */}
-        <div className={`fixed ${sidebarVisible ? 'left-[96px]' : 'left-[24px]'} top-[1.15rem] z-20 transition-all duration-300`}>
-          <button
-            onClick={() => setSidebarVisible(!sidebarVisible)}
-            className="text-gray-600 hover:text-gray-800 bg-white border border-gray-200 shadow-sm p-1.5 hover:bg-gray-100 rounded"
-            title={sidebarVisible ? "Hide sidebar" : "Show sidebar"}
-          >
-            <span className="text-xl font-semibold">{sidebarVisible ? "←" : "≡"}</span>
-          </button>
-        </div>
+        {/* Sidebar Toggle Button - positioned to the right of blue sidebar */}
+        <button
+          onClick={toggleSidebar}
+          className="absolute z-20 p-2 bg-white border border-gray-200 rounded-full shadow-sm hover:bg-gray-50"
+          style={{ left: '76px',top: '0.7rem' }}>
+            <Menu size={20} className="text-gray-700" />
+        
+        </button>
 
-        {/* Main Chat Area */}
+        {/* Main Chat Area - with fixed right position */}
         {selectedItem ? (
           <div className="flex flex-1 overflow-hidden">
-            <div className={`${!sidebarVisible ? 'ml-10' : ''} flex-1 flex transition-all duration-300`}>
-              <UnifiedChatInterface
-                item={selectedItem}
-                type={selectedItem.type}
-                pageId={selectedPage?.pageId}
-                pageAccessToken={selectedPage?.pageAccessToken}
-                selectedPage={selectedPage}
-                sidebarVisible={sidebarVisible}
-              />
+            {/* Chat interface with fixed right positioning */}
+            <div className="w-full flex flex-1 flex-grow overflow-hidden justify-end">
+              <div className={`${!sidebarVisible ? 'w-[calc(100%-3rem)]' : 'w-full'} flex transition-all duration-300 ease-in-out justify-end`}>
+                <UnifiedChatInterface
+                  item={selectedItem}
+                  type={selectedItem.type}
+                  pageId={selectedPage?.pageId}
+                  pageAccessToken={selectedPage?.pageAccessToken}
+                  selectedPage={selectedPage}
+                  sidebarVisible={sidebarVisible}
+                />
+              </div>
             </div>
             
             {/* Customer Information Panel */}
