@@ -23,11 +23,9 @@ const CommentsView = ({ selectedPage, pageAccessToken }) => {
         console.log('📩 New comment/reply received:', data);
         setNewCommentNotification(data.message);
         
-        // Auto-refresh comments after a short delay
-        setTimeout(() => {
-          fetchAllComments();
-          setNewCommentNotification('');
-        }, 2000);
+        // Immediately refresh comments and clear notification
+        fetchAllComments();
+        setTimeout(() => setNewCommentNotification(''), 1000);
       };
       
       socketService.on('new-comment', handleNewComment);

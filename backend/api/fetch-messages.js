@@ -20,7 +20,7 @@ class FacebookMessageFetcher {
         params: {
           access_token: this.pageAccessToken,
           limit: limit,
-          fields: 'id,updated_time,message_count,unread_count,participants'
+          fields: 'id,updated_time,message_count,unread_count,participants{id,name,profile_pic,picture}'
         }
       });
 
@@ -50,7 +50,7 @@ class FacebookMessageFetcher {
         params: {
           access_token: this.pageAccessToken,
           limit: limit,
-          fields: 'id,created_time,from,to,message,attachments'
+          fields: 'id,created_time,from{id,name,profile_pic,picture},to,message,attachments'
         }
       });
 
@@ -78,7 +78,7 @@ class FacebookMessageFetcher {
       const response = await axios.get(url, {
         params: {
           access_token: this.pageAccessToken,
-          fields: 'id,name,first_name,last_name,profile_pic'
+          fields: 'id,name,first_name,last_name,profile_pic,picture.type(large)'
         }
       });
 

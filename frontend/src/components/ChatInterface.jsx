@@ -52,15 +52,15 @@ const formatMessageTime = (time) => {
 };
 
 const SelfMessage = ({ message, senderName, profilePic, type = "both" }) => {
-  // Determine if icon and time should be visible based on message type
-  const isIconVisible = type === "both" || type === "last";
+  // Always show icons and time for debugging - you can adjust this later
+  const isIconVisible = true; // Always show profile pictures
   const isTimeVisible = type === "both" || type === "last";
   
   const timestamp = message.timestamp || message.created_time || message.createdAt || new Date().toString();
   
   return (
     <div className={`flex flex-col items-end ${type === "last" || type === "both" ? "mb-8" : "mb-1"}`}>
-      <div className="w-fit items-start gap-3 max-w-[80%] flex">
+      <div className="w-fit items-start gap-3 max-w-[80%] flex flex-row">
         <div className="flex flex-col items-end" title={formatMessageTime(timestamp)}>
           <div className="border bg-white rounded-lg p-2 w-fit">
             {message.message || message.content}
@@ -75,7 +75,11 @@ const SelfMessage = ({ message, senderName, profilePic, type = "both" }) => {
         <img 
           src={profilePic || userImage} 
           alt="profile-icon" 
-          className={`${!isIconVisible ? "invisible" : ""} rounded-full aspect-square w-8 h-8 object-cover my-[6px]`}
+          className="rounded-full aspect-square w-8 h-8 object-cover my-[6px] border-2 border-blue-500"
+          onError={(e) => {
+            e.target.src = userImage;
+          }}
+          style={{ backgroundColor: 'red' }} // Debug: red background to make it visible
         />
       </div>
     </div>
@@ -84,8 +88,8 @@ const SelfMessage = ({ message, senderName, profilePic, type = "both" }) => {
 
 const OthersMessage = ({ message, senderName, profilePic, type = "both" }) => {
   const timestamp = message.timestamp || message.created_time || message.createdAt || new Date().toString();
-  // Determine if icon and time should be visible based on message type
-  const isIconVisible = type === "both" || type === "first";
+  // Always show icons and time for debugging - you can adjust this later
+  const isIconVisible = true; // Always show profile pictures
   const isTimeVisible = type === "both" || type === "last";
   
   return (
@@ -105,7 +109,10 @@ const OthersMessage = ({ message, senderName, profilePic, type = "both" }) => {
         <img 
           src={profilePic || userImage} 
           alt="profile-icon" 
-          className={`${!isIconVisible ? "invisible" : ""} rounded-full aspect-square w-8 h-8 object-cover my-[6px]`}
+          className="rounded-full aspect-square w-8 h-8 object-cover my-[6px]"
+          onError={(e) => {
+            e.target.src = userImage;
+          }}
         />
       </div>
     </div>
@@ -121,17 +128,51 @@ const ChatInterface = ({ item, type, pageId, pageAccessToken }) => {
   const messagesEndRef = useRef(null);
   const chatBoxRef = useRef(null);
 
+  // Debug the item data structure
+  console.log('🔍 ChatInterface received item data:', {
+    itemId: item?.id,
+    itemConversationId: item?.conversationId,
+    customerName: item?.customerName,
+    customerProfilePic: item?.customerProfilePic,
+    pageProfilePic: item?.pageProfilePic,
+    fullItem: item
+  });
+
   useEffect(() => {
     if (item) {
+      console.log('📋 ChatInterface item data:', {
+        customerName: item.customerName,
+        customerProfilePic: item.customerProfilePic,
+        pageProfilePic: item.pageProfilePic,
+        fullItem: item
+      });
+      
       if (type === 'conversation') {
         fetchMessages();
         
         // Set up real-time message handler for this conversation
         const handleNewMessage = (data) => {
           if (data.conversationId === item.conversationId || data.conversationId === item.id) {
+            
+            // Check if this is our own message
+            const isOwnMessage = data.message.senderId === pageId || data.message.type === 'outgoing';
+            
+            if (isOwnMessage) {
+              console.log('🚫 Received own message from socket - updating existing message if needed');
+              // For our own messages, just update any pending messages to confirmed
+              setMessages(prevMessages => 
+                prevMessages.map(msg => 
+                  msg.pending && msg.content === data.message.content
+                    ? { ...msg, pending: false, messageId: data.message.messageId }
+                    : msg
+                )
+              );
+              return;
+            }
+            
             console.log('📩 Received new message for current conversation:', data);
             
-            // Add the new message to the current messages
+            // Add the new incoming message to the current messages
             setMessages(prevMessages => {
               // Check if message already exists to avoid duplicates
               const messageExists = prevMessages.some(msg => 
@@ -148,7 +189,8 @@ const ChatInterface = ({ item, type, pageId, pageAccessToken }) => {
                   content: data.message.content,
                   timestamp: data.message.timestamp,
                   created_time: data.message.timestamp,
-                  type: data.message.type
+                  type: data.message.type,
+                  profilePic: data.message.profilePic || item.customerProfilePic
                 };
                 
                 // Insert in chronological order
@@ -352,9 +394,13 @@ const ChatInterface = ({ item, type, pageId, pageAccessToken }) => {
         });
         
         if (response.data.success) {
-          // Remove the optimistic message as the real one will come via WebSocket
+          // Update the optimistic message to confirmed status instead of removing it
           setMessages(prevMessages => 
-            prevMessages.filter(msg => msg.messageId !== optimisticMessage.messageId)
+            prevMessages.map(msg => 
+              msg.messageId === optimisticMessage.messageId 
+                ? { ...msg, pending: false, messageId: response.data.messageId || msg.messageId }
+                : msg
+            )
           );
         } else {
           // Remove optimistic message on failure
@@ -418,7 +464,7 @@ const ChatInterface = ({ item, type, pageId, pageAccessToken }) => {
   }
 
   return (
-    <div className="bg-gray-50 flex-1 h-full flex flex-col">
+    <div className="flex-1 h-full flex flex-col" style={{backgroundColor: '#f6f6f7'}}>
       {/* Header */}
       <div className="px-8 py-4 border-b bg-white">
         <span className="text-xl font-semibold">
@@ -457,10 +503,27 @@ const ChatInterface = ({ item, type, pageId, pageAccessToken }) => {
                     const senderName = message.from?.name || message.senderName || 
                                      (isFromPage ? 'You' : item.customerName || 'Customer');
                     
-                    // Get profile pictures
+                    // Get profile pictures - use actual data now
                     const profilePic = isFromPage 
-                      ? item.pageProfilePic || userImage // Page profile pic
-                      : item.customerProfilePic || message.profilePic || message.from?.profile_pic || userImage; // Customer profile pic
+                      ? (item.pageProfilePic || userImage) // Page profile pic for your messages
+                      : (item.customerProfilePic || message.from?.picture?.data?.url || message.from?.profile_pic || userImage); // Customer profile pic for their messages
+
+                    // Debug: Log profile picture data
+                    if (isFromPage) {
+                      console.log('🟦 YOUR MESSAGE:', {
+                        isFromPage,
+                        pageProfilePic: item.pageProfilePic,
+                        finalProfilePic: profilePic,
+                        item: item
+                      });
+                    } else {
+                      console.log('🟨 THEIR MESSAGE:', {
+                        isFromPage,
+                        customerProfilePic: item.customerProfilePic,
+                        messageFromProfilePic: message.from?.profile_pic,
+                        finalProfilePic: profilePic
+                      });
+                    }
 
                     // Determine message type for styling
                     let messageType = "both";
@@ -527,9 +590,12 @@ const ChatInterface = ({ item, type, pageId, pageAccessToken }) => {
                     <div key={comment.id || index} className="border-l-4 border-gray-200 pl-4 w-full mb-4">
                       <div className="flex items-start gap-3">
                         <img 
-                          src={comment.from?.profile_pic || userImage} 
+                          src={comment.from?.profile_pic || comment.from?.picture?.data?.url || userImage} 
                           alt="profile-icon" 
-                          className="rounded-full aspect-square w-8 object-cover"
+                          className="rounded-full aspect-square w-8 h-8 object-cover"
+                          onError={(e) => {
+                            e.target.src = userImage;
+                          }}
                         />
                         <div className="flex-1">
                           <div className="border bg-white rounded-lg p-2">

@@ -79,6 +79,15 @@ router.post('/:conversationId/sync-messages', verifyToken, validateConversationR
     const { pageAccessToken, pageId, limit = 25 } = req.body;
     const userId = req.user._id;
 
+    console.log('🔄 Sync messages request:', {
+      conversationId,
+      pageId,
+      hasPageAccessToken: !!pageAccessToken,
+      pageAccessTokenLength: pageAccessToken?.length,
+      userId,
+      limit
+    });
+
     const service = new FacebookConversationService(pageAccessToken, userId, pageId);
     const result = await service.syncMessages(conversationId, parseInt(limit));
 

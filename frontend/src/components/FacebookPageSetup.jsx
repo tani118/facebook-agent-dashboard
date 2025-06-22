@@ -22,7 +22,6 @@ const FacebookPageSetup = ({ onPageConnected }) => {
       }
     } catch (error) {
       console.error('Error fetching pages:', error);
-      setError('Failed to load connected pages');
     } finally {
       setLoading(false);
     }

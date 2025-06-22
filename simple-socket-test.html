@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Simple Socket Test</title>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+</head>
+<body>
+    <h1>Simple Socket Connection Test</h1>
+    <div id="status">Testing...</div>
+    <div id="logs"></div>
+    
+    <script>
+        const statusDiv = document.getElementById('status');
+        const logsDiv = document.getElementById('logs');
+        
+        function log(message) {
+            console.log(message);
+            logsDiv.innerHTML += '<div>' + new Date().toLocaleTimeString() + ': ' + message + '</div>';
+        }
+        
+        log('🧪 Starting simple socket test...');
+        
+        // Use exactly the same configuration as the main app
+        const socket = io('http://localhost:5000', {
+            autoConnect: true,
+            reconnection: true,
+            reconnectionAttempts: 5,
+            reconnectionDelay: 1000
+        });
+        
+        socket.on('connect', () => {
+            log('✅ Socket connected successfully! ID: ' + socket.id);
+            statusDiv.innerHTML = '✅ Socket connection is working!';
+            
+            // Test joining a room
+            socket.emit('join-user-room', 'test-user');
+            log('📡 Sent join-user-room event');
+            
+            // Test page room
+            socket.emit('join-page-room', 'test-page');
+            log('📡 Sent join-page-room event');
+        });
+        
+        socket.on('disconnect', (reason) => {
+            log('🔌 Socket disconnected: ' + reason);
+            statusDiv.innerHTML = '❌ Socket disconnected: ' + reason;
+        });
+        
+        socket.on('connect_error', (error) => {
+            log('❌ Socket connection failed: ' + error.message);
+            statusDiv.innerHTML = '❌ Socket connection failed';
+        });
+        
+        socket.on('reconnect', (attemptNumber) => {
+            log('🔄 Reconnected after ' + attemptNumber + ' attempts');
+        });
+    </script>
+</body>
+</html>

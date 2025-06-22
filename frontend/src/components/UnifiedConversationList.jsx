@@ -107,26 +107,30 @@ const UnifiedConversationList = ({
             <div
               key={`conv-${item.id || item._id}`}
               onClick={() => onItemSelect(item)}
-              className={`flex flex-col py-5 px-4 w-full border-b cursor-pointer hover:bg-[#F6F6F6] transition-all duration-200 ${
+              className={`flex flex-col py-4 px-4 w-full cursor-pointer hover:bg-[#F6F6F6] transition-all duration-200 ${
                 isSelected ? 'bg-[#F6F6F6]' : ''
               }`}
             >
-              <div className="flex w-full items-center gap-3">
-                <input type="checkbox" className="h-5 w-5" />
-                <div className="flex flex-col items-start w-[80%]">
-                  <span className="max-w-[100%] overflow-hidden text-left font-medium text-lg">
-                    {getCustomerName(item)}
-                  </span>
-                  <span className="text-sm text-gray-600 mt-1">Facebook DM</span>
+              {/* First Row: Checkbox, Name + Type, Time */}
+              <div className="flex w-full items-start justify-between">
+                <div className="flex items-center gap-3 flex-1">
+                  <input type="checkbox" className="h-4 w-4" />
+                  <div className="flex flex-col items-start flex-1">
+                    <span className="font-medium text-gray-900 text-base leading-tight">
+                      {getCustomerName(item)}
+                    </span>
+                    <span className="text-sm text-gray-500 mt-0.5">Facebook DM</span>
+                  </div>
                 </div>
-                <span className="text-sm text-gray-500">
+                <span className="text-sm text-gray-900 ml-2 mt-1">
                   {formatTime(getLastMessageTime(item))}
                 </span>
               </div>
   
-              <div className="mr-auto text-left pl-7 mt-1">
-                <span className="text-base opacity-60 text-left">
-                  {truncateText(getLastMessage(item), 40)}
+              {/* Second Row: Latest Message */}
+              <div className="mt-2 pl-7">
+                <span className="text-sm text-gray-600 leading-relaxed">
+                  {truncateText(getLastMessage(item), 45)}
                 </span>
               </div>
             </div>
@@ -144,26 +148,30 @@ const UnifiedConversationList = ({
             <div
               key={item.userId}
               onClick={() => onItemSelect({...item, type: 'comments'})}
-              className={`flex flex-col py-5 px-4 w-full border-b cursor-pointer hover:bg-[#F6F6F6] transition-all duration-200 ${
+              className={`flex flex-col py-4 px-4 w-full cursor-pointer hover:bg-[#F6F6F6] transition-all duration-200 ${
                 isSelected ? 'bg-[#F6F6F6]' : ''
               }`}
             >
-              <div className="flex w-full items-center gap-3">
-                <input type="checkbox" className="h-5 w-5" />
-                <div className="flex flex-col items-start w-[80%]">
-                  <span className="max-w-[100%] overflow-hidden text-left font-medium text-lg">
-                    {item.userName}
-                  </span>
-                  <span className="text-sm text-gray-600 mt-1">Facebook Post</span>
+              {/* First Row: Checkbox, Name + Type, Time */}
+              <div className="flex w-full items-start justify-between">
+                <div className="flex items-center gap-3 flex-1">
+                  <input type="checkbox" className="h-4 w-4" />
+                  <div className="flex flex-col items-start flex-1">
+                    <span className="font-medium text-gray-900 text-base leading-tight">
+                      {item.userName}
+                    </span>
+                    <span className="text-sm text-gray-500 mt-0.5">Facebook Post</span>
+                  </div>
                 </div>
-                <span className="text-sm text-gray-500">
+                <span className="text-sm text-gray-900 ml-2 mt-1">
                   {latestComment ? formatTime(latestComment.createdTime) : ''}
                 </span>
               </div>
 
-              <div className="mr-auto text-left pl-7 mt-1">
-                <span className="text-base opacity-60 text-left">
-                  {latestComment ? truncateText(latestComment.message, 40) : ''}
+              {/* Second Row: Latest Message */}
+              <div className="mt-2 pl-7">
+                <span className="text-sm text-gray-600 leading-relaxed">
+                  {latestComment ? truncateText(latestComment.message, 45) : ''}
                 </span>
               </div>
             </div>

@@ -60,8 +60,8 @@ class FacebookConversationService {
               pageId: this.pageId,
               userId: this.userId,
               customerId: customerId,
-              customerName: customerProfile.name || customerName,
-              customerProfilePic: customerProfile.profile_pic || '',
+              customerName: customerProfile.name || customerProfile.first_name || customerName,
+              customerProfilePic: customerProfile.profile_pic || customerProfile.picture?.data?.url || '',
               lastMessageAt: new Date(fbConversation.updated_time),
               unreadCount: fbConversation.unread_count || 0
             });
@@ -71,6 +71,14 @@ class FacebookConversationService {
             conversation.unreadCount = fbConversation.unread_count || 0;
             if (customerName !== 'Unknown') {
               conversation.customerName = customerName;
+            }
+            
+            // Update profile picture if not set or fetch new one
+            if (!conversation.customerProfilePic) {
+              const profileResult = await this.fetcher.fetchUserProfile(customerId);
+              if (profileResult.success) {
+                conversation.customerProfilePic = profileResult.data.profile_pic || profileResult.data.picture?.data?.url || '';
+              }
             }
             
             // Store the Facebook conversation ID for API calls but don't change primary conversationId

@@ -1,5 +1,6 @@
 import React from 'react';
 import ConversationImg from '../assets/conversation.jpg';
+import userImage from '../assets/user.png';
 import { RefreshCw } from 'lucide-react';
 
 const EmptyChat = () => {
@@ -100,26 +101,38 @@ const ConversationList = ({
         <div
           key={conversation.id || conversation._id}
           onClick={() => onItemSelect(conversation)}
-          className={`flex flex-col p-4 w-full border-b cursor-pointer hover:bg-[#F6F6F6] transition-all duration-200 ${
+          className={`flex flex-col py-4 px-4 w-full cursor-pointer hover:bg-[#F6F6F6] transition-all duration-200 ${
             selectedItem?.id === conversation.id || selectedItem?.conversationId === conversation.id ? 'bg-[#F6F6F6]' : ''
           }`}
         >
-          <div className="flex w-full items-center gap-3">
-            <input type="checkbox" className="h-4 w-4" />
-            <div className="flex flex-col items-start w-[80%]">
-              <span className="max-w-[100%] overflow-hidden text-left font-medium">
-                {getCustomerName(conversation)}
-              </span>
-              <span className="text-sm font-bold text-gray-600">Facebook DM</span>
+          {/* First Row: Checkbox, Profile Picture, Name + Type, Time */}
+          <div className="flex w-full items-start justify-between">
+            <div className="flex items-center gap-3 flex-1">
+              <input type="checkbox" className="h-4 w-4" />
+              <img 
+                src={conversation.customerProfilePic || userImage} 
+                alt="profile" 
+                className="rounded-full w-8 h-8 object-cover"
+                onError={(e) => {
+                  e.target.src = userImage;
+                }}
+              />
+              <div className="flex flex-col items-start flex-1">
+                <span className="font-medium text-gray-900 text-base leading-tight">
+                  {getCustomerName(conversation)}
+                </span>
+                <span className="text-sm text-gray-500 mt-0.5">Facebook DM</span>
+              </div>
             </div>
-            <span className="text-sm mb-4 text-gray-500">
+            <span className="text-sm text-gray-900 ml-2 mt-1">
               {formatTime(getLastMessageTime(conversation))}
             </span>
           </div>
 
-          <div className="mr-auto text-left pl-7">
-            <span className="text-sm opacity-60 text-left">
-              {truncateText(getLastMessage(conversation))}
+          {/* Second Row: Latest Message */}
+          <div className="mt-2 pl-12">
+            <span className="text-sm text-gray-600 leading-relaxed">
+              {truncateText(getLastMessage(conversation), 45)}
             </span>
           </div>
         </div>

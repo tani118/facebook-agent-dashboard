@@ -65,7 +65,9 @@ const Dashboard = () => {
             const updated = [...prevConversations];
             updated[existingIndex] = {
               ...updated[existingIndex],
-              ...data
+              ...data,
+              // Preserve existing profile pictures if not provided in the update
+              customerProfilePic: data.customerProfilePic || updated[existingIndex].customerProfilePic
             };
             return updated.sort((a, b) => 
               new Date(b.lastMessageAt) - new Date(a.lastMessageAt)
@@ -102,11 +104,8 @@ const Dashboard = () => {
       const handleNewComment = (data) => {
         console.log('📩 New comment/reply received:', data);
         
-        setTimeout(() => {
-          if (activeTab === 'comments') {
-            fetchComments();
-          }
-        }, 2000);
+        // Immediately refresh comments when new comments arrive
+        fetchComments();
       };
       
       socketService.on('new-comment', handleNewComment);
@@ -280,7 +279,7 @@ const Dashboard = () => {
           {/* Header */}
           <div className="flex justify-between items-center px-4 py-4 border-b border-gray-200 bg-white">
             <div className="flex items-center">
-              <h2 className="text-xl font-medium ml-14">Conversations</h2>
+              <h2 className="text-xl font-bold ml-14">Conversations</h2>
             </div>
             <button
               onClick={fetchData}
@@ -355,9 +354,8 @@ const Dashboard = () => {
         ) : (
           <div className="flex items-center justify-center w-full text-gray-500 bg-[#F6F6F6]">
             <div className="text-center">
-              <div className="text-6xl mb-4">💬</div>
+              <div className="text-6xl mb-4"></div>
               <p className="text-lg">
-                Select a conversation to start
               </p>
             </div>
           </div>

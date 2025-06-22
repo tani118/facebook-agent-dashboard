@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real-time Message Reception Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .status {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .status.connected { background-color: #d4edda; color: #155724; }
+        .status.disconnected { background-color: #f8d7da; color: #721c24; }
+        .status.connecting { background-color: #fff3cd; color: #856404; }
+        .indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 10px;
+        }
+        .connected .indicator { background-color: #28a745; }
+        .disconnected .indicator { background-color: #dc3545; }
+        .connecting .indicator { background-color: #ffc107; }
+        .controls {
+            margin-bottom: 20px;
+        }
+        .controls button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            margin-right: 10px;
+            cursor: pointer;
+        }
+        .controls button:hover {
+            background: #0056b3;
+        }
+        .controls button:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
+        .config {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 5px;
+        }
+        .config input {
+            width: 100%;
+            padding: 8px;
+            margin: 5px 0;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+        }
+        .log-container {
+            height: 400px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 10px;
+            background: #f8f9fa;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .log-entry {
+            margin-bottom: 5px;
+            padding: 2px 0;
+        }
+        .log-entry.socket { color: #007bff; }
+        .log-entry.message { color: #28a745; font-weight: bold; }
+        .log-entry.error { color: #dc3545; }
+        .log-entry.info { color: #6c757d; }
+        .timestamp {
+            color: #6c757d;
+            font-size: 10px;
+        }
+        .conversation-test {
+            margin-top: 20px;
+            padding: 15px;
+            background: #e9ecef;
+            border-radius: 5px;
+        }
+        .message-simulator {
+            margin-top: 10px;
+        }
+        .message-simulator textarea {
+            width: 100%;
+            padding: 8px;
+            margin: 5px 0;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            resize: vertical;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Real-time Message Reception Test</h1>
+        
+        <div id="status" class="status disconnected">
+            <div class="indicator"></div>
+            <span id="status-text">Disconnected</span>
+        </div>
+
+        <div class="config">
+            <h3>Configuration</h3>
+            <input type="text" id="userId" placeholder="User ID (e.g., 676799dee17866fbeb6b5c59)" value="676799dee17866fbeb6b5c59">
+            <input type="text" id="pageId" placeholder="Page ID (e.g., 17841401779050828)" value="17841401779050828">
+            <input type="text" id="conversationId" placeholder="Target Conversation ID (optional)">
+        </div>
+
+        <div class="controls">
+            <button id="connectBtn" onclick="connectSocket()">Connect</button>
+            <button id="disconnectBtn" onclick="disconnectSocket()" disabled>Disconnect</button>
+            <button id="clearLogBtn" onclick="clearLog()">Clear Log</button>
+            <button id="testWebhookBtn" onclick="testWebhook()" disabled>Send Test Webhook</button>
+        </div>
+
+        <div class="conversation-test">
+            <h3>Message Simulation</h3>
+            <div class="message-simulator">
+                <textarea id="messageContent" rows="3" placeholder="Enter test message content...">Test message from frontend at {{timestamp}}</textarea>
+                <button onclick="simulateIncomingMessage()" disabled id="simulateBtn">Simulate Incoming Message</button>
+            </div>
+        </div>
+
+        <h3>Event Log</h3>
+        <div id="log" class="log-container">
+            <div class="log-entry info">
+                <span class="timestamp">[Ready]</span> Frontend test page loaded. Click Connect to start.
+            </div>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        let socket = null;
+        let isConnected = false;
+
+        function log(type, message, data = null) {
+            const logContainer = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            
+            let content = `<span class="timestamp">[${timestamp}]</span> ${message}`;
+            if (data) {
+                content += `\n${JSON.stringify(data, null, 2)}`;
+            }
+            entry.innerHTML = content;
+            
+            logContainer.appendChild(entry);
+            logContainer.scrollTop = logContainer.scrollHeight;
+        }
+
+        function updateStatus(status, text) {
+            const statusElement = document.getElementById('status');
+            const statusText = document.getElementById('status-text');
+            
+            statusElement.className = `status ${status}`;
+            statusText.textContent = text;
+        }
+
+        function updateButtons() {
+            document.getElementById('connectBtn').disabled = isConnected;
+            document.getElementById('disconnectBtn').disabled = !isConnected;
+            document.getElementById('testWebhookBtn').disabled = !isConnected;
+            document.getElementById('simulateBtn').disabled = !isConnected;
+        }
+
+        function connectSocket() {
+            const userId = document.getElementById('userId').value;
+            const pageId = document.getElementById('pageId').value;
+
+            if (!userId || !pageId) {
+                alert('Please enter both User ID and Page ID');
+                return;
+            }
+
+            updateStatus('connecting', 'Connecting...');
+            log('socket', 'Attempting to connect to Socket.IO server...', { userId, pageId });
+
+            socket = io('http://localhost:5000', {
+                autoConnect: true,
+                reconnection: true,
+                reconnectionAttempts: 3,
+                reconnectionDelay: 1000,
+                transports: ['polling', 'websocket'],
+                forceNew: true,
+                timeout: 10000
+            });
+
+            socket.on('connect', () => {
+                isConnected = true;
+                updateStatus('connected', `Connected (ID: ${socket.id})`);
+                updateButtons();
+                log('socket', '✅ Connected to Socket.IO server', { socketId: socket.id });
+                
+                // Join user room
+                socket.emit('join-user-room', userId);
+                log('socket', '👤 Joined user room', { userId });
+                
+                // Join page room
+                socket.emit('join-page-room', pageId);
+                log('socket', '📄 Joined page room', { pageId });
+            });
+
+            socket.on('disconnect', () => {
+                isConnected = false;
+                updateStatus('disconnected', 'Disconnected');
+                updateButtons();
+                log('socket', '❌ Disconnected from server');
+            });
+
+            socket.on('connect_error', (error) => {
+                isConnected = false;
+                updateStatus('disconnected', `Connection Error: ${error.message}`);
+                updateButtons();
+                log('error', '🔌 Connection failed', error);
+            });
+
+            // Listen for real-time events
+            socket.on('new-message', (data) => {
+                log('message', '📩 NEW MESSAGE EVENT RECEIVED', data);
+                
+                // Check if this is for our target conversation
+                const targetConversationId = document.getElementById('conversationId').value;
+                if (targetConversationId && data.conversationId !== targetConversationId) {
+                    log('info', '⏩ Message not for target conversation, skipping');
+                    return;
+                }
+                
+                // This is where the frontend would update the UI
+                displayMessageReceived(data);
+            });
+
+            socket.on('conversation-updated', (data) => {
+                log('message', '💬 CONVERSATION UPDATED EVENT RECEIVED', data);
+            });
+
+            socket.on('new-comment', (data) => {
+                log('message', '💭 NEW COMMENT EVENT RECEIVED', data);
+            });
+        }
+
+        function disconnectSocket() {
+            if (socket) {
+                socket.disconnect();
+                socket = null;
+            }
+        }
+
+        function clearLog() {
+            document.getElementById('log').innerHTML = '';
+        }
+
+        function displayMessageReceived(data) {
+            log('info', '🎯 Processing received message for UI update', {
+                conversationId: data.conversationId,
+                messageContent: data.message.content,
+                senderName: data.message.senderName,
+                timestamp: data.message.timestamp
+            });
+        }
+
+        function simulateIncomingMessage() {
+            if (!socket || !isConnected) {
+                alert('Not connected to socket server');
+                return;
+            }
+
+            const userId = document.getElementById('userId').value;
+            const pageId = document.getElementById('pageId').value;
+            const conversationId = document.getElementById('conversationId').value || `${pageId}_test_${Date.now()}`;
+            const messageContent = document.getElementById('messageContent').value.replace('{{timestamp}}', new Date().toLocaleTimeString());
+
+            const simulatedData = {
+                conversationId: conversationId,
+                message: {
+                    messageId: `sim_${Date.now()}`,
+                    senderId: 'test_customer_123',
+                    senderName: 'Test Customer',
+                    content: messageContent,
+                    timestamp: Date.now(),
+                    type: 'incoming'
+                },
+                conversation: {
+                    conversationId: conversationId,
+                    customerName: 'Test Customer',
+                    lastMessageContent: messageContent,
+                    lastMessageAt: new Date(),
+                    unreadCount: 1
+                }
+            };
+
+            log('info', '🧪 Simulating incoming message event', simulatedData);
+            
+            // Simulate receiving the event (this tests the frontend handling)
+            socket.emit('new-message', simulatedData);
+        }
+
+        async function testWebhook() {
+            if (!isConnected) {
+                alert('Not connected to socket server');
+                return;
+            }
+
+            const pageId = document.getElementById('pageId').value;
+            const customerId = 'test_customer_' + Date.now();
+            const messageContent = document.getElementById('messageContent').value.replace('{{timestamp}}', new Date().toLocaleTimeString());
+
+            const webhookPayload = {
+                object: 'page',
+                entry: [{
+                    id: pageId,
+                    time: Date.now(),
+                    messaging: [{
+                        sender: { id: customerId },
+                        recipient: { id: pageId },
+                        timestamp: Date.now(),
+                        message: {
+                            mid: `test_${Date.now()}`,
+                            text: messageContent
+                        }
+                    }]
+                }]
+            };
+
+            log('info', '🚀 Sending test webhook request', webhookPayload);
+
+            try {
+                const response = await fetch('http://localhost:5000/api/webhook', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(webhookPayload)
+                });
+
+                const result = await response.text();
+                log('info', `📡 Webhook response: ${response.status} - ${result}`);
+                
+                if (response.ok) {
+                    log('info', '⏳ Waiting for real-time event to arrive...');
+                }
+            } catch (error) {
+                log('error', '❌ Webhook request failed', error);
+            }
+        }
+
+        // Auto-connect if user ID and page ID are provided
+        window.addEventListener('load', () => {
+            const userId = document.getElementById('userId').value;
+            const pageId = document.getElementById('pageId').value;
+            
+            if (userId && pageId) {
+                log('info', '🔄 Auto-connecting with provided configuration...');
+                setTimeout(connectSocket, 1000);
+            }
+        });
+    </script>
+</body>
+</html>

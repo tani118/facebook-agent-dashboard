@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real-time Socket Test</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            padding: 20px; 
+            background: #f5f5f5; 
+        }
+        .container { 
+            max-width: 800px; 
+            margin: 0 auto; 
+            background: white; 
+            padding: 20px; 
+            border-radius: 8px; 
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1); 
+        }
+        .status { 
+            padding: 10px; 
+            margin: 10px 0; 
+            border-radius: 4px; 
+        }
+        .connected { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .event { 
+            background: #e7f3ff; 
+            border-left: 4px solid #007bff; 
+            padding: 10px; 
+            margin: 10px 0; 
+        }
+        button { 
+            background: #007bff; 
+            color: white; 
+            padding: 10px 20px; 
+            border: none; 
+            border-radius: 4px; 
+            cursor: pointer; 
+            margin: 5px; 
+        }
+        button:hover { background: #0056b3; }
+        #log { 
+            background: #f8f9fa; 
+            padding: 15px; 
+            border-radius: 4px; 
+            height: 300px; 
+            overflow-y: auto; 
+            font-family: monospace; 
+            font-size: 12px; 
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔄 Real-time Socket Connection Test</h1>
+        
+        <div id="connection-status" class="status">
+            ⏳ Connecting to Socket.IO server...
+        </div>
+        
+        <div>
+            <button onclick="testMessage()">📧 Simulate Message Event</button>
+            <button onclick="testComment()">💬 Simulate Comment Event</button>
+            <button onclick="clearLog()">🗑️ Clear Log</button>
+        </div>
+        
+        <h3>📋 Event Log:</h3>
+        <div id="log"></div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const log = document.getElementById('log');
+        const statusDiv = document.getElementById('connection-status');
+        
+        function addLog(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            logEntry.innerHTML = `<strong>[${timestamp}]</strong> ${message}`;
+            logEntry.style.marginBottom = '5px';
+            
+            if (type === 'error') logEntry.style.color = '#dc3545';
+            if (type === 'success') logEntry.style.color = '#28a745';
+            if (type === 'warning') logEntry.style.color = '#ffc107';
+            
+            log.appendChild(logEntry);
+            log.scrollTop = log.scrollHeight;
+        }
+        
+        // Connect to Socket.IO server
+        const socket = io('http://localhost:5000', {
+            autoConnect: true,
+            reconnection: true,
+            transports: ['polling', 'websocket']
+        });
+        
+        socket.on('connect', () => {
+            addLog('✅ Connected to Socket.IO server with ID: ' + socket.id, 'success');
+            statusDiv.className = 'status connected';
+            statusDiv.innerHTML = '✅ Connected to Socket.IO server';
+            
+            // Join test rooms
+            socket.emit('join-user-room', 'test-user-123');
+            socket.emit('join-page-room', 'test-page-456');
+            addLog('🏠 Joined test user and page rooms', 'info');
+        });
+        
+        socket.on('connect_error', (error) => {
+            addLog('❌ Connection error: ' + error.message, 'error');
+            statusDiv.className = 'status error';
+            statusDiv.innerHTML = '❌ Connection failed';
+        });
+        
+        socket.on('disconnect', () => {
+            addLog('🔌 Disconnected from server', 'warning');
+            statusDiv.className = 'status error';
+            statusDiv.innerHTML = '🔌 Disconnected from server';
+        });
+        
+        // Listen for all socket events
+        socket.onAny((eventName, ...args) => {
+            addLog(`📥 Received event: ${eventName}`, 'info');
+            if (args.length > 0) {
+                addLog(`   Data: ${JSON.stringify(args, null, 2)}`, 'info');
+            }
+        });
+        
+        // Specific event listeners
+        socket.on('new-message', (data) => {
+            addLog('📧 NEW MESSAGE EVENT received!', 'success');
+            addLog(`   From: ${data.message?.senderName || 'Unknown'}`, 'info');
+            addLog(`   Content: ${data.message?.content || 'No content'}`, 'info');
+        });
+        
+        socket.on('new-comment', (data) => {
+            addLog('💬 NEW COMMENT EVENT received!', 'success');
+            addLog(`   Comment ID: ${data.commentId || 'Unknown'}`, 'info');
+            addLog(`   Message: ${data.message || 'No message'}`, 'info');
+        });
+        
+        socket.on('conversation-updated', (data) => {
+            addLog('🔄 CONVERSATION UPDATED EVENT received!', 'success');
+            addLog(`   Conversation: ${data.conversationId || 'Unknown'}`, 'info');
+        });
+        
+        function testMessage() {
+            addLog('🧪 Testing message event simulation...', 'warning');
+            fetch('http://localhost:5000/api/webhook', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    object: 'page',
+                    entry: [{
+                        id: 'test-page-456',
+                        time: Date.now(),
+                        messaging: [{
+                            sender: { id: 'test-customer-123' },
+                            recipient: { id: 'test-page-456' },
+                            timestamp: Date.now(),
+                            message: {
+                                mid: 'test-message-' + Date.now(),
+                                text: 'Hello! This is a test message from the browser test.'
+                            }
+                        }]
+                    }]
+                })
+            })
+            .then(response => response.text())
+            .then(result => {
+                addLog('📤 Message webhook sent: ' + result, 'info');
+            })
+            .catch(error => {
+                addLog('❌ Message webhook error: ' + error.message, 'error');
+            });
+        }
+        
+        function testComment() {
+            addLog('🧪 Testing comment event simulation...', 'warning');
+            fetch('http://localhost:5000/api/webhook', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    object: 'page',
+                    entry: [{
+                        id: 'test-page-456',
+                        time: Date.now(),
+                        changes: [{
+                            field: 'feed',
+                            value: {
+                                item: 'comment',
+                                comment_id: 'test-comment-' + Date.now(),
+                                post_id: 'test-post-789',
+                                verb: 'add',
+                                message: 'This is a test comment from the browser test.'
+                            }
+                        }]
+                    }]
+                })
+            })
+            .then(response => response.text())
+            .then(result => {
+                addLog('📤 Comment webhook sent: ' + result, 'info');
+            })
+            .catch(error => {
+                addLog('❌ Comment webhook error: ' + error.message, 'error');
+            });
+        }
+        
+        function clearLog() {
+            log.innerHTML = '';
+            addLog('🗑️ Log cleared', 'info');
+        }
+        
+        // Add initial log
+        addLog('🚀 Socket test page loaded', 'info');
+    </script>
+</body>
+</html>

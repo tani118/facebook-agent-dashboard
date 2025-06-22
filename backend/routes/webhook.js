@@ -33,35 +33,54 @@ router.get('/', (req, res) => {
 router.post('/', (req, res) => {
   const body = req.body;
 
+  console.log('🌐 WEBHOOK: Received webhook request:', {
+    object: body.object,
+    entryCount: body.entry?.length || 0,
+    timestamp: new Date().toISOString()
+  });
+
   // Check if this is an event from a page subscription
   if (body.object === 'page') {
+    console.log('✅ WEBHOOK: Valid page subscription event');
+    
     // Iterate over each entry - there may be multiple if batched
-    body.entry.forEach(async (entry) => {
+    body.entry.forEach(async (entry, index) => {
+      console.log(`🔄 WEBHOOK: Processing entry ${index + 1}/${body.entry.length}:`, {
+        entryId: entry.id,
+        hasMessaging: !!entry.messaging,
+        hasChanges: !!entry.changes,
+        messagingCount: entry.messaging?.length || 0,
+        changesCount: entry.changes?.length || 0
+      });
+      
       try {
         // Get the webhook event
         const webhookEvent = entry.messaging ? entry.messaging[0] : entry.changes ? entry.changes[0] : null;
         
         if (!webhookEvent) {
-          console.log('No webhook event found');
+          console.log('❌ WEBHOOK: No webhook event found in entry');
           return;
         }
 
         // Handle different types of events
         if (entry.messaging) {
+          console.log('📨 WEBHOOK: Processing messaging events...');
           // Messaging events (messages, postbacks, etc.)
           await handleMessagingEvent(entry);
         } else if (entry.changes) {
+          console.log('📄 WEBHOOK: Processing page changes...');
           // Page changes (comments, posts, etc.)
           await handlePageChanges(entry);
         }
       } catch (error) {
-        console.error('Error processing webhook entry:', error);
+        console.error('❌ WEBHOOK: Error processing webhook entry:', error);
       }
     });
 
     // Return a '200 OK' response to all events
     res.status(200).send('EVENT_RECEIVED');
   } else {
+    console.log('❌ WEBHOOK: Invalid object type:', body.object);
     // Return a '404 Not Found' if event is not from a page subscription
     res.sendStatus(404);
   }
@@ -103,7 +122,7 @@ async function handleIncomingMessage(messagingEvent, pageId) {
   const senderId = messagingEvent.sender.id;
   const timestamp = messagingEvent.timestamp;
 
-  console.log('Received message:', {
+  console.log('🔔 WEBHOOK: Received message:', {
     pageId,
     senderId,
     messageId: message.mid,
@@ -117,8 +136,10 @@ async function handleIncomingMessage(messagingEvent, pageId) {
       'facebookPages.pageId': pageId
     });
 
+    console.log(`🔍 WEBHOOK: Found ${users.length} users for page ${pageId}`);
+
     if (users.length === 0) {
-      console.log('No users found for page:', pageId);
+      console.log('❌ WEBHOOK: No users found for page:', pageId);
       return;
     }
 
@@ -157,8 +178,7 @@ async function handleIncomingMessage(messagingEvent, pageId) {
 
       // Emit real-time update to connected clients
       if (global.io) {
-        // Emit to user-specific room
-        global.io.to(`user-${user._id}`).emit('new-message', {
+        const socketPayload = {
           conversationId: conversation.conversationId,
           message: {
             messageId: message.mid,
@@ -166,16 +186,27 @@ async function handleIncomingMessage(messagingEvent, pageId) {
             senderName: conversation.customerName,
             content: message.text || '[Attachment]',
             timestamp: timestamp,
-            type: 'incoming'
+            type: 'incoming',
+            profilePic: conversation.customerProfilePic
           },
           conversation: {
             conversationId: conversation.conversationId,
             customerName: conversation.customerName,
+            customerProfilePic: conversation.customerProfilePic,
             lastMessageContent: message.text || '[Attachment]',
             lastMessageAt: new Date(timestamp),
             unreadCount: conversation.unreadCount || 0
           }
-        });
+        };
+
+        console.log(`📡 WEBHOOK: About to emit socket events for user ${user._id}:`);
+        console.log(`📡 WEBHOOK: Socket payload:`, JSON.stringify(socketPayload, null, 2));
+        console.log(`📡 WEBHOOK: Connected clients: ${global.io.engine.clientsCount}`);
+        console.log(`📡 WEBHOOK: User room: user-${user._id}`);
+        console.log(`📡 WEBHOOK: Page room: page-${pageId}`);
+
+        // Emit to user-specific room
+        global.io.to(`user-${user._id}`).emit('new-message', socketPayload);
 
         // Also emit to page-specific room
         global.io.to(`page-${pageId}`).emit('conversation-updated', {
@@ -186,7 +217,7 @@ async function handleIncomingMessage(messagingEvent, pageId) {
           unreadCount: conversation.unreadCount || 0
         });
 
-        console.log(`📡 Emitted real-time update for conversation ${conversation.conversationId}`);
+        console.log(`📡 WEBHOOK: Successfully emitted real-time update for conversation ${conversation.conversationId}`);
       }
     }
   } catch (error) {
@@ -218,7 +249,7 @@ async function findOrCreateConversation(pageId, customerId, userId, pageAccessTo
         userId: userId,
         customerId: customerId,
         customerName: customerProfile.name || customerProfile.first_name || 'Unknown',
-        customerProfilePic: customerProfile.profile_pic || '',
+        customerProfilePic: customerProfile.profile_pic || customerProfile.picture?.data?.url || '',
         lastMessageAt: new Date(),
         status: 'active'
       });
@@ -408,19 +439,27 @@ async function handleCommentEvent(changeValue, pageId) {
       if (users.length > 0) {
         // Emit real-time update to all connected users for this page
         if (global.io) {
+          const eventData = {
+            pageId: pageId,
+            commentId: changeValue.comment_id,
+            postId: changeValue.post_id,
+            parentId: changeValue.parent_id,
+            isReply: !!changeValue.parent_id,
+            verb: changeValue.verb,
+            message: 'New comment/reply received',
+            timestamp: new Date().toISOString()
+          };
+
           users.forEach(user => {
-            global.io.to(`user-${user._id}`).emit('new-comment', {
-              pageId: pageId,
-              commentId: changeValue.comment_id,
-              postId: changeValue.post_id,
-              parentId: changeValue.parent_id,
-              isReply: !!changeValue.parent_id,
-              message: 'New comment/reply received - refresh comments to see latest updates'
-            });
+            // Emit to user-specific room
+            global.io.to(`user-${user._id}`).emit('new-comment', eventData);
+            
+            // Also emit to page-specific room for immediate updates
+            global.io.to(`page-${pageId}`).emit('new-comment', eventData);
           });
         }
         
-        console.log(`Notified ${users.length} users about new comment/reply`);
+        console.log(`📡 Notified ${users.length} users about new comment/reply`);
       }
     } catch (error) {
       console.error('Error handling comment event:', error);

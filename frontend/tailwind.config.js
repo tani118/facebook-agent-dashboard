@@ -9,6 +9,10 @@ export default {
       colors: {
         primary: "#1e4d91", // Blue color similar to the one used in the expected frontend
       },
+      fontFamily: {
+        'sans': ['Inter', 'sans-serif'],
+        'roboto': ['Roboto', 'sans-serif'],
+      },
     },
   },
   plugins: [],

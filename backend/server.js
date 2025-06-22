@@ -26,10 +26,28 @@ const io = new Server(server, {
     origin: [
       process.env.FRONTEND_URL || 'http://localhost:5173',
       'http://localhost:5174',
-      'http://localhost:5175'
+      'http://localhost:5175',
+      'http://localhost:5176', // Current frontend port
+      'http://127.0.0.1:5176', // IPv4 explicit
+      'http://[::1]:5176',     // IPv6 explicit
+      'http://localhost:5177',
+      'https://6de4-103-108-5-157.ngrok-free.app', // Current ngrok URL
+      'https://b1d4-103-108-5-157.ngrok-free.app',
+      'https://eca5-103-108-5-157.ngrok-free.app',
+      'https://6de4-103-108-5-157.ngrok-free.app',
+      'file://' // Allow file protocol for local testing
     ],
-    credentials: true
-  }
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['ngrok-skip-browser-warning', 'Content-Type', 'Authorization']
+  },
+  allowEIO3: true,
+  transports: ['polling', 'websocket'],
+  // Additional ngrok-friendly options
+  pingTimeout: 60000,
+  pingInterval: 25000,
+  maxHttpBufferSize: 1e6,
+  serveClient: false
 });
 
 // Connect to MongoDB
@@ -38,7 +56,7 @@ connectDB();
 // Store Socket.IO instance globally for use in routes
 global.io = io;
 
-// Middleware
+// Middleware`
 app.use(cors({
   origin: [
     process.env.FRONTEND_URL || 'http://localhost:5173',
@@ -48,7 +66,8 @@ app.use(cors({
     'http://localhost:5177', // Another possible frontend port
     'http://localhost:5173', // Allow local frontend explicitly
     'https://b1d4-103-108-5-157.ngrok-free.app', // Allow self-requests via ngrok
-    'https://eca5-103-108-5-157.ngrok-free.app' // Current ngrok URL
+    'https://eca5-103-108-5-157.ngrok-free.app', // Current ngrok URL
+    'https://6de4-103-108-5-157.ngrok-free.app'
   ],
   credentials: true
 }));
@@ -119,9 +138,17 @@ app.use((error, req, res, next) => {
 
 const PORT = process.env.PORT || 5000;
 
-// Socket.IO connection handling
+// Socket.IO connection handling with detailed logging
+io.engine.on('connection_error', (err) => {
+  console.log('🔌❌ Socket.IO connection error:', err.req);
+  console.log('🔌❌ Error details:', err.code, err.message);
+  console.log('🔌❌ Error context:', err.context);
+});
+
 io.on('connection', (socket) => {
   console.log('🔌 Client connected:', socket.id);
+  console.log('🔌 Client origin:', socket.handshake.headers.origin);
+  console.log('🔌 Client user-agent:', socket.handshake.headers['user-agent']);
   
   // Join user to their specific room for targeted updates
   socket.on('join-user-room', (userId) => {

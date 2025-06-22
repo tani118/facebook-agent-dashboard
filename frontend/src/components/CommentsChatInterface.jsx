@@ -16,16 +16,23 @@ const CommentsChatInterface = ({ selectedPage, pageAccessToken }) => {
     if (selectedPage && pageAccessToken) {
       fetchAllComments();
       
-      // Set up real-time comment notifications
+      // Set up real-time comment notifications with debouncing
+      const commentRefreshTimeoutRef = { current: null };
+      
       const handleNewComment = (data) => {
         console.log('📩 New comment/reply received:', data);
-        setNewCommentNotification('New comment received! Refreshing...');
+        setNewCommentNotification('New comment received!');
         
-        // Auto-refresh comments after a short delay
-        setTimeout(() => {
+        // Debounced refresh to avoid multiple rapid API calls
+        if (commentRefreshTimeoutRef.current) {
+          clearTimeout(commentRefreshTimeoutRef.current);
+        }
+        
+        commentRefreshTimeoutRef.current = setTimeout(() => {
           fetchAllComments();
           setNewCommentNotification('');
-        }, 2000);
+          commentRefreshTimeoutRef.current = null;
+        }, 200);
       };
       
       socketService.on('new-comment', handleNewComment);
@@ -77,8 +84,19 @@ const CommentsChatInterface = ({ selectedPage, pageAccessToken }) => {
         console.log('📊 Filtered comments data:', filteredData);
         
         setCommentsData(filteredData);
-        // Auto-select first user if none selected
-        if (!selectedThread && filteredData.userComments?.length > 0) {
+        
+        // Maintain selected thread if it still exists
+        if (selectedThread && filteredData.userComments) {
+          const updatedSelectedThread = filteredData.userComments.find(
+            userGroup => userGroup.userId === selectedThread.userId
+          );
+          if (updatedSelectedThread) {
+            setSelectedThread(updatedSelectedThread);
+          } else if (!selectedThread && filteredData.userComments?.length > 0) {
+            // Auto-select first user if none selected
+            setSelectedThread(filteredData.userComments[0]);
+          }
+        } else if (!selectedThread && filteredData.userComments?.length > 0) {
           setSelectedThread(filteredData.userComments[0]);
         }
       }
@@ -108,9 +126,49 @@ const CommentsChatInterface = ({ selectedPage, pageAccessToken }) => {
       if (response.data.success) {
         setReplyMessage('');
         setSelectedCommentForReply(null);
-        // Refresh comments to show the new reply
-        fetchAllComments();
+        
+        // Show success message
         alert('Reply posted successfully!');
+        
+        // Optimistically add the reply to local state for immediate feedback
+        const newReply = {
+          commentId: response.data.data?.id || `temp-${Date.now()}`,
+          message: replyMessage,
+          createdTime: new Date().toISOString(),
+          from: {
+            id: selectedPage.pageId,
+            name: selectedPage.pageName || 'You'
+          },
+          authorId: selectedPage.pageId,
+          authorName: selectedPage.pageName || 'You',
+          isReply: true,
+          postId: comment.postId,
+          postMessage: comment.postMessage
+        };
+
+        // Update the selected thread's comments
+        if (selectedThread) {
+          setCommentsData(prevData => {
+            if (!prevData) return prevData;
+            
+            const updatedUserComments = prevData.userComments.map(userGroup => {
+              if (userGroup.userId === selectedThread.userId) {
+                return {
+                  ...userGroup,
+                  comments: [...userGroup.comments, newReply].sort((a, b) => 
+                    new Date(a.createdTime) - new Date(b.createdTime)
+                  )
+                };
+              }
+              return userGroup;
+            });
+            
+            return {
+              ...prevData,
+              userComments: updatedUserComments
+            };
+          });
+        }
       }
     } catch (error) {
       console.error('Error posting reply:', error);
@@ -217,7 +275,7 @@ const CommentsChatInterface = ({ selectedPage, pageAccessToken }) => {
     return (
       <div className="flex-1 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-600 mx-auto"></div>
           <p className="mt-2 text-gray-600">Loading comments...</p>
         </div>
       </div>
@@ -253,12 +311,12 @@ const CommentsChatInterface = ({ selectedPage, pageAccessToken }) => {
             </button>
           </div>
           <div className="mt-2 text-sm text-gray-600">
-            <span>{commentsData.totalUsers} users • {commentsData.totalComments} comments</span>
+            <span>{commentsData.totalUsers} users - {commentsData.totalComments} comments</span>
           </div>
           
           {/* New Comment Notification */}
           {newCommentNotification && (
-            <div className="mt-3 p-2 bg-blue-100 border border-blue-300 text-blue-700 rounded text-sm">
+            <div className="mt-3 p-2 bg-gray-100 border border-gray-300 text-gray-700 rounded text-sm">
               🔔 {newCommentNotification}
             </div>
           )}
@@ -277,7 +335,7 @@ const CommentsChatInterface = ({ selectedPage, pageAccessToken }) => {
                 key={userGroup.userId}
                 onClick={() => setSelectedThread(userGroup)}
                 className={`p-4 border-b border-gray-100 cursor-pointer hover:bg-gray-50 transition-colors ${
-                  selectedThread?.userId === userGroup.userId ? 'bg-blue-50 border-l-4 border-l-blue-500' : ''
+                  selectedThread?.userId === userGroup.userId ? 'bg-gray-100 border-l-4 border-l-gray-500' : ''
                 }`}
               >
                 <div className="flex items-center">
@@ -288,7 +346,7 @@ const CommentsChatInterface = ({ selectedPage, pageAccessToken }) => {
                       className="w-12 h-12 rounded-full mr-3"
                     />
                   ) : (
-                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center mr-3">
+                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-gray-400 to-gray-600 flex items-center justify-center mr-3">
                       <span className="text-white font-bold text-lg">
                         {userGroup.userName.charAt(0).toUpperCase()}
                       </span>
@@ -303,11 +361,11 @@ const CommentsChatInterface = ({ selectedPage, pageAccessToken }) => {
                     </div>
                     
                     <div className="flex items-center space-x-2 mt-1">
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-200 text-gray-800">
                         {customerComments} comment{customerComments !== 1 ? 's' : ''}
                       </span>
                       {pageReplies > 0 && (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-300 text-gray-700">
                           {pageReplies} repl{pageReplies !== 1 ? 'ies' : 'y'}
                         </span>
                       )}
@@ -363,7 +421,7 @@ const CommentsChatInterface = ({ selectedPage, pageAccessToken }) => {
                   {/* Post Context (show only for first comment of each post) */}
                   {(index === 0 || comment.postId !== selectedThread.comments[index - 1]?.postId) && (
                     <div className="text-center my-4">
-                      <div className="inline-block px-3 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+                      <div className="inline-block px-3 py-1 bg-gray-200 text-gray-700 text-xs rounded-full">
                         💬 On post: {comment.postMessage.substring(0, 50)}...
                       </div>
                     </div>
@@ -372,7 +430,7 @@ const CommentsChatInterface = ({ selectedPage, pageAccessToken }) => {
                   {/* Comment Message */}
                   <div 
                     className={`flex group cursor-pointer hover:bg-gray-100 p-2 rounded-lg transition-colors ${
-                      selectedCommentForReply?.commentId === comment.commentId ? 'bg-blue-50 border-2 border-blue-200' : ''
+                      selectedCommentForReply?.commentId === comment.commentId ? 'bg-gray-200 border-2 border-gray-400' : ''
                     } ${comment.isReply ? 'ml-8' : ''}`}
                     onClick={() => setSelectedCommentForReply(comment)}
                   >
@@ -401,7 +459,7 @@ const CommentsChatInterface = ({ selectedPage, pageAccessToken }) => {
                           {isFromPage(comment) ? (selectedPage.pageName || 'Page Admin') : getCommentAuthor(comment).name}
                         </span>
                         {isFromPage(comment) && (
-                          <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-gray-200 text-gray-700">
                             Admin
                           </span>
                         )}
@@ -418,14 +476,14 @@ const CommentsChatInterface = ({ selectedPage, pageAccessToken }) => {
                       {/* Message Text */}
                       <div className={`p-3 rounded-lg ${
                         isFromPage(comment)
-                          ? 'bg-blue-500 text-white'
+                          ? 'bg-gray-600 text-white'
                           : 'bg-white border border-gray-200'
                       }`}>
                         <p className="text-sm">{comment.message}</p>
                         
                         {/* Message Actions */}
                         <div className="flex items-center justify-between mt-2">
-                          <div className={`text-xs ${isFromPage(comment) ? 'text-blue-100' : 'text-gray-500'}`}>
+                          <div className={`text-xs ${isFromPage(comment) ? 'text-gray-100' : 'text-gray-500'}`}>
                             {comment.likeCount > 0 && (
                               <span>👍 {comment.likeCount}</span>
                             )}
@@ -436,7 +494,7 @@ const CommentsChatInterface = ({ selectedPage, pageAccessToken }) => {
                             <button
                               className={`text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity ${
                                 selectedCommentForReply?.commentId === comment.commentId
-                                  ? 'bg-blue-100 text-blue-700'
+                                  ? 'bg-gray-200 text-gray-800'
                                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                               }`}
                               onClick={(e) => {
@@ -460,19 +518,19 @@ const CommentsChatInterface = ({ selectedPage, pageAccessToken }) => {
             <div className="p-4 border-t border-gray-200 bg-white">
               {/* Selected Comment for Reply */}
               {selectedCommentForReply && (
-                <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="mb-3 p-3 bg-gray-100 border border-gray-300 rounded-lg">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium text-blue-800">
+                    <span className="text-sm font-medium text-gray-800">
                       Replying to {isFromPage(selectedCommentForReply) ? 'Admin' : getCommentAuthor(selectedCommentForReply).name}
                     </span>
                     <button
                       onClick={() => setSelectedCommentForReply(null)}
-                      className="text-blue-600 hover:text-blue-800 text-sm"
+                      className="text-gray-600 hover:text-gray-800 text-sm"
                     >
                       ✕ Cancel
                     </button>
                   </div>
-                  <p className="text-sm text-gray-700 bg-white p-2 rounded border">
+                  <p className="text-sm text-gray-700 bg-white p-2 rounded border border-gray-200">
                     {selectedCommentForReply.message.length > 100 
                       ? selectedCommentForReply.message.substring(0, 100) + '...'
                       : selectedCommentForReply.message
@@ -491,7 +549,7 @@ const CommentsChatInterface = ({ selectedPage, pageAccessToken }) => {
                         ? `Reply to ${isFromPage(selectedCommentForReply) ? 'Admin' : getCommentAuthor(selectedCommentForReply).name}...`
                         : `Select a comment to reply to ${selectedThread.userName}...`
                     }
-                    className="w-full p-3 border border-gray-300 rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full p-3 border border-gray-300 rounded-lg resize-none focus:ring-2 focus:ring-gray-400 focus:border-transparent"
                     rows="2"
                     onKeyPress={(e) => {
                       if (e.key === 'Enter' && !e.shiftKey && selectedCommentForReply) {
@@ -505,22 +563,22 @@ const CommentsChatInterface = ({ selectedPage, pageAccessToken }) => {
                   <button
                     onClick={() => selectedCommentForReply && handlePublicReply(selectedCommentForReply)}
                     disabled={sending || !replyMessage.trim() || !selectedCommentForReply}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 text-sm"
+                    className="px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-800 disabled:opacity-50 text-sm"
                   >
-                    {sending ? '...' : '💬 Public'}
+                    {sending ? '...' : '💬 Public Reply'}
                   </button>
                   <button
                     onClick={() => selectedCommentForReply && handlePrivateMessage(selectedCommentForReply)}
                     disabled={sending || !replyMessage.trim() || !selectedCommentForReply}
-                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 text-sm"
+                    className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 disabled:opacity-50 text-sm"
                   >
-                    {sending ? '...' : '📱 Private'}
+                    {sending ? '...' : '📱 Private Message'}
                   </button>
                 </div>
               </div>
               <div className="mt-2 text-xs text-gray-500">
                 {selectedCommentForReply 
-                  ? 'Press Enter to send public reply • Shift+Enter for new line'
+                  ? 'Press Enter to send public reply - Shift+Enter for new line'
                   : 'Click on a comment above to select it for reply'
                 }
               </div>

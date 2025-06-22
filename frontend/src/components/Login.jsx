@@ -91,14 +91,16 @@ const Login = ({ onSwitchToSignup }) => {
                 {error}
               </div>
             )}
-
+            
             <Button 
               type="submit" 
               disabled={loading}
               loading={loading}
+              className="w-full"
             >
               {loading ? 'Logging in...' : 'Login'}
             </Button>
+
 
             <div className="text-center">
               <p className="text-sm">

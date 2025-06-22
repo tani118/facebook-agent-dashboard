@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Socket Connection Test</title>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+</head>
+<body>
+    <h1>Socket Connection Diagnostic</h1>
+    <div id="status">Testing...</div>
+    <div id="logs"></div>
+    
+    <script>
+        const statusDiv = document.getElementById('status');
+        const logsDiv = document.getElementById('logs');
+        
+        function log(message) {
+            console.log(message);
+            logsDiv.innerHTML += '<div>' + new Date().toLocaleTimeString() + ': ' + message + '</div>';
+        }
+        
+        // Test 1: Check if backend API is reachable
+        log('🧪 Testing backend API...');
+        fetch('https://6de4-103-108-5-157.ngrok-free.app/api/health', {
+            headers: {
+                'ngrok-skip-browser-warning': 'true',
+                'Content-Type': 'application/json'
+            }
+        })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                log('✅ Backend API is reachable: ' + JSON.stringify(data));
+                testSocket();
+            })
+            .catch(error => {
+                log('❌ Backend API unreachable: ' + error.message);
+                statusDiv.innerHTML = '❌ Ngrok API is not reachable';
+                
+                // Try localhost as fallback
+                log('🔄 Trying localhost fallback...');
+                fetch('http://localhost:5000/api/health')
+                    .then(response => response.json())
+                    .then(data => {
+                        log('✅ Localhost backend is reachable: ' + JSON.stringify(data));
+                        testLocalSocket();
+                    })
+                    .catch(localError => {
+                        log('❌ Localhost also unreachable: ' + localError.message);
+                        statusDiv.innerHTML = '❌ No backend reachable';
+                    });
+            });
+        
+        // Test 2: Test socket connection
+        function testSocket() {
+            log('🔌 Testing socket connection to ngrok...');
+            
+            const socket = io('https://6de4-103-108-5-157.ngrok-free.app', {
+                transports: ['polling'], // Use polling for ngrok
+                timeout: 15000,
+                autoConnect: true,
+                forceNew: true,
+                extraHeaders: {
+                    'ngrok-skip-browser-warning': 'true'
+                }
+            });
+            
+            socket.on('connect', () => {
+                log('✅ Socket connected successfully! ID: ' + socket.id);
+                statusDiv.innerHTML = '✅ Socket connection is working!';
+                
+                // Test joining a room
+                socket.emit('join-user-room', 'test-user');
+                log('📡 Sent join-user-room event');
+                
+                setTimeout(() => {
+                    socket.disconnect();
+                    log('🔌 Test completed, disconnected');
+                }, 2000);
+            });
+            
+            socket.on('connect_error', (error) => {
+                log('❌ Socket connection failed: ' + error.message);
+                statusDiv.innerHTML = '❌ Socket connection failed';
+            });
+            
+            socket.on('disconnect', (reason) => {
+                log('🔌 Socket disconnected: ' + reason);
+            });
+        }
+        
+        // Test 3: Test localhost socket connection as fallback
+        function testLocalSocket() {
+            log('🔌 Testing socket connection to localhost:5000...');
+            
+            const socket = io('http://localhost:5000', {
+                transports: ['websocket', 'polling'],
+                timeout: 5000,
+                autoConnect: true,
+                forceNew: true
+            });
+            
+            socket.on('connect', () => {
+                log('✅ Localhost socket connected successfully! ID: ' + socket.id);
+                statusDiv.innerHTML = '✅ Localhost socket connection is working!';
+                
+                // Test joining a room
+                socket.emit('join-user-room', 'test-user');
+                log('📡 Sent join-user-room event to localhost');
+                
+                setTimeout(() => {
+                    socket.disconnect();
+                    log('🔌 Localhost test completed, disconnected');
+                }, 2000);
+            });
+            
+            socket.on('connect_error', (error) => {
+                log('❌ Localhost socket connection failed: ' + error.message);
+                statusDiv.innerHTML = '❌ All socket connections failed';
+            });
+            
+            socket.on('disconnect', (reason) => {
+                log('🔌 Localhost socket disconnected: ' + reason);
+            });
+        }
+    </script>
+</body>
+</html>

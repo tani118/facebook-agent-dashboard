@@ -131,6 +131,12 @@ const ChatInterface = ({ item, type, pageId, pageAccessToken }) => {
           if (data.conversationId === item.conversationId || data.conversationId === item.id) {
             console.log('📩 Received new message for current conversation:', data);
             
+            // Filter out messages from the current page (your own messages)
+            if (data.message.senderId === pageId || data.message.type === 'outgoing') {
+              console.log('🚫 Ignoring own message from socket event');
+              return;
+            }
+            
             // Add the new message to the current messages
             setMessages(prevMessages => {
               // Check if message already exists to avoid duplicates

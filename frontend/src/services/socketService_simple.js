@@ -12,38 +12,14 @@ class SocketService {
       this.disconnect();
     }
 
-    // Determine socket URL based on environment
-    const socketUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-    const isNgrok = socketUrl.includes('ngrok');
-    
-    console.log('🔌 Attempting to connect to socket server:', socketUrl);
-    console.log('🔌 Frontend running on:', window.location.origin);
-    console.log('🔌 Using socket URL from env:', import.meta.env.VITE_API_URL);
-    console.log('🔌 Is ngrok connection:', isNgrok);
+    console.log('🔌 Attempting to connect to socket server...');
 
-    // Configure socket options based on connection type
-    const socketOptions = {
+    this.socket = io('http://localhost:5000', {
       autoConnect: true,
       reconnection: true,
       reconnectionAttempts: 5,
-      reconnectionDelay: 2000,
-      forceNew: true,
-      timeout: 15000
-    };
-
-    // For ngrok connections, use specific configuration
-    if (isNgrok) {
-      socketOptions.transports = ['polling']; // Force polling for ngrok
-      socketOptions.upgrade = false; // Disable websocket upgrade
-      socketOptions.extraHeaders = {
-        'ngrok-skip-browser-warning': 'true'
-      };
-      console.log('🔌 Using ngrok-optimized configuration');
-    } else {
-      socketOptions.transports = ['polling', 'websocket'];
-    }
-
-    this.socket = io(socketUrl, socketOptions);
+      reconnectionDelay: 1000
+    });
 
     this.socket.on('connect', () => {
       console.log('🔌 Connected to server via WebSocket');

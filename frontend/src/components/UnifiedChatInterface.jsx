@@ -50,31 +50,34 @@ const formatMessageTime = (time) => {
   }
 };
 
-const SelfMessage = ({ message, senderName, profilePic, type = "both", isComment = false }) => {
-  // Determine if icon and time should be visible based on message type
-  const isIconVisible = type === "both" || type === "last";
-  const isTimeVisible = type === "both" || type === "last";
+const SelfMessage = ({ message, senderName, profilePic, type = "both", isComment = false, isReply = false }) => {
+  // Always show icons and time - simplified for profile picture visibility
+  const isIconVisible = true; // Always show profile pictures
+  const isTimeVisible = true; // Always show details (sender name and timestamp)
   
   const timestamp = message.timestamp || message.created_time || message.createdAt || new Date().toString();
   
   return (
-    <div className={`flex flex-col items-end ${type === "last" || type === "both" ? "mb-8" : "mb-1"}`}>
+    <div className={`flex flex-col items-end ${type === "last" || type === "both" ? "mb-4" : "mb-1"} ${isReply ? 'ml-12' : ''}`}>
       <div className="w-fit items-start gap-3 max-w-[80%] flex">
         <div className="flex flex-col items-end" title={formatMessageTime(timestamp)}>
-          <div className="rounded-lg p-2 w-fit bg-gray-100 text-gray-800 border border-gray-200">
+          <div className="rounded-lg p-3 w-fit bg-white text-gray-800 border border-gray-200">
             {message.message || message.content}
           </div>
           {isTimeVisible && (
             <div className="px-2 mt-1">
-              <span className="text-xs text-gray-800 font-medium">{senderName || 'You'}</span>
-              <span className="text-xs text-gray-800"> - {formatMessageTime(timestamp)}</span>
+              <span className="text-xs text-gray-600 font-medium">{senderName || 'You'}</span>
+              <span className="text-xs text-gray-500"> - {formatMessageTime(timestamp)}</span>
             </div>
           )}
         </div>
         <img 
           src={profilePic || userImage} 
           alt="profile-icon" 
-          className={`${!isIconVisible ? "invisible" : ""} rounded-full aspect-square w-8 h-8 object-cover my-[6px]`}
+          className="rounded-full aspect-square w-8 h-8 object-cover my-[6px]"
+          onError={(e) => {
+            e.target.src = userImage;
+          }}
         />
       </div>
     </div>
@@ -83,33 +86,31 @@ const SelfMessage = ({ message, senderName, profilePic, type = "both", isComment
 
 const OthersMessage = ({ message, senderName, profilePic, type = "both", isComment = false, isReply = false }) => {
   const timestamp = message.timestamp || message.created_time || message.createdAt || new Date().toString();
-  // Determine if icon and time should be visible based on message type
-  const isIconVisible = type === "both" || type === "first";
-  const isTimeVisible = type === "both" || type === "last";
+  // Always show icons and time - simplified for profile picture visibility
+  const isIconVisible = true; // Always show profile pictures
+  const isTimeVisible = true; // Always show details (sender name and timestamp)
   
   return (
-    <div className={`flex flex-col ${type === "last" || type === "both" ? "mb-8" : "mb-1"} ${isReply ? 'pl-8' : ''}`}>
+    <div className={`flex flex-col ${type === "last" || type === "both" ? "mb-4" : "mb-1"} ${isReply ? 'ml-12' : ''}`}>
       <div className="w-fit items-start gap-3 max-w-[80%] flex flex-row-reverse">
         <div className="flex flex-col" title={formatMessageTime(timestamp)}>
-          {isReply && (
-            <div className="text-xs text-gray-600 mb-1">
-              ↳ Reply to comment
-            </div>
-          )}
-          <div className="rounded-lg p-2 w-fit bg-white border border-gray-200">
+          <div className="rounded-lg p-3 w-fit bg-white border border-gray-200">
             {message.message || message.content}
           </div>
           {isTimeVisible && (
             <div className="px-2 mt-1">
-              <span className="text-xs text-gray-800 font-medium">{senderName || 'Customer'}</span>
-              <span className="text-xs text-gray-800"> - {formatMessageTime(timestamp)}</span>
+              <span className="text-xs text-gray-600 font-medium">{senderName || 'Customer'}</span>
+              <span className="text-xs text-gray-500"> - {formatMessageTime(timestamp)}</span>
             </div>
           )}
         </div>
         <img 
           src={profilePic || userImage} 
           alt="profile-icon" 
-          className={`${!isIconVisible ? "invisible" : ""} rounded-full aspect-square w-8 h-8 object-cover my-[6px]`}
+          className="rounded-full aspect-square w-8 h-8 object-cover my-[6px]"
+          onError={(e) => {
+            e.target.src = userImage;
+          }}
         />
       </div>
     </div>
@@ -118,9 +119,9 @@ const OthersMessage = ({ message, senderName, profilePic, type = "both", isComme
 
 const PostHeader = ({ post }) => {
   return (
-    <div className="text-center my-4">
-      <div className="inline-block px-3 py-1 bg-gray-50 text-gray-500 text-xs rounded border border-gray-200">
-        Post: {post.postMessage ? post.postMessage.substring(0, 50) + (post.postMessage.length > 50 ? '...' : '') : post.id}
+    <div className="text-center my-4 py-2">
+      <div className="inline-block px-3 py-1 bg-gray-100 text-gray-600 text-xs rounded">
+        Post: {post.postMessage ? post.postMessage.substring(0, 60) + (post.postMessage.length > 60 ? '...' : '') : `Post ${post.postId}`}
       </div>
     </div>
   );
@@ -134,8 +135,10 @@ const UnifiedChatInterface = ({ item, type, pageId, pageAccessToken, selectedPag
   const [sending, setSending] = useState(false);
   const [selectedCommentForReply, setSelectedCommentForReply] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [notification, setNotification] = useState(null);
   const messagesEndRef = useRef(null);
   const chatBoxRef = useRef(null);
+  const commentRefreshTimeoutRef = useRef(null);
   
   // Group comments by postId for organization
   const groupedComments = comments.reduce((groups, comment) => {
@@ -160,9 +163,26 @@ const UnifiedChatInterface = ({ item, type, pageId, pageAccessToken, selectedPag
         // Set up real-time message handler for this conversation
         const handleNewMessage = (data) => {
           if (data.conversationId === item.conversationId || data.conversationId === item.id) {
+            
+            // Check if this is our own message
+            const isOwnMessage = data.message.senderId === pageId || data.message.type === 'outgoing';
+            
+            if (isOwnMessage) {
+              console.log('🚫 Received own message from socket - updating existing message if needed');
+              // For our own messages, just update any pending messages to confirmed
+              setMessages(prevMessages => 
+                prevMessages.map(msg => 
+                  msg.pending && msg.content === data.message.content
+                    ? { ...msg, pending: false, messageId: data.message.messageId }
+                    : msg
+                )
+              );
+              return;
+            }
+            
             console.log('📩 Received new message for current conversation:', data);
             
-            // Add the new message to the current messages
+            // Add the new incoming message to the current messages
             setMessages(prevMessages => {
               // Check if message already exists to avoid duplicates
               const messageExists = prevMessages.some(msg => 
@@ -206,10 +226,18 @@ const UnifiedChatInterface = ({ item, type, pageId, pageAccessToken, selectedPag
         const handleNewComment = (data) => {
           console.log('📩 New comment/reply received:', data);
           
-          // Auto-refresh comments after a short delay
-          setTimeout(() => {
-            fetchComments();
-          }, 2000);
+          // Check if this comment is for the current conversation/user
+          if (data.pageId === pageId) {
+            // Use debounced refresh to avoid multiple rapid API calls
+            if (commentRefreshTimeoutRef.current) {
+              clearTimeout(commentRefreshTimeoutRef.current);
+            }
+            
+            commentRefreshTimeoutRef.current = setTimeout(() => {
+              fetchComments();
+              commentRefreshTimeoutRef.current = null;
+            }, 100); // Very short delay just to batch multiple events
+          }
         };
         
         socketService.on('new-comment', handleNewComment);
@@ -269,6 +297,13 @@ const UnifiedChatInterface = ({ item, type, pageId, pageAccessToken, selectedPag
       // First try to sync messages from Facebook API
       if (pageAccessToken && pageId) {
         try {
+          console.log('🔄 Attempting to sync messages:', {
+            conversationId,
+            pageId,
+            hasPageAccessToken: !!pageAccessToken,
+            pageAccessTokenLength: pageAccessToken?.length
+          });
+          
           await axios.post(`/conversations/${conversationId}/sync-messages`, {
             pageAccessToken: pageAccessToken,
             pageId: pageId,
@@ -276,7 +311,13 @@ const UnifiedChatInterface = ({ item, type, pageId, pageAccessToken, selectedPag
           });
         } catch (syncError) {
           console.log('Sync failed, continuing with local data:', syncError.message);
+          console.error('Sync error details:', syncError.response?.data);
         }
+      } else {
+        console.log('⚠️ Missing required data for sync:', {
+          hasPageAccessToken: !!pageAccessToken,
+          hasPageId: !!pageId
+        });
       }
 
       // Then fetch messages from local database
@@ -335,16 +376,40 @@ const UnifiedChatInterface = ({ item, type, pageId, pageAccessToken, selectedPag
       
       if (response.data.success) {
         console.log('📊 Comments data received:', response.data.data);
-        // Filter to only show the comments from the selected user
+        
+        // Get all comments for this user's posts and replies
         const userComments = response.data.data.userComments.find(
           userGroup => userGroup.userId === item.userId
         );
         
         if (userComments) {
-          // Sort comments by timestamp
-          const sortedComments = userComments.comments.sort(
+          // Get all comments from all posts this user has commented on
+          const allRelevantComments = [];
+          
+          // First, add all the user's comments
+          allRelevantComments.push(...userComments.comments);
+          
+          // Get all post IDs where this user has commented
+          const userPostIds = userComments.comments.map(c => c.postId);
+          
+          // Then, find ALL comments on those posts (including from other users and admins)
+          response.data.data.userComments.forEach(userGroup => {
+            userGroup.comments.forEach(comment => {
+              // Include comment if it's on a post where our user has commented
+              // and it's not already included (avoid duplicates)
+              if (userPostIds.includes(comment.postId) && 
+                  !allRelevantComments.some(existing => existing.commentId === comment.commentId)) {
+                allRelevantComments.push(comment);
+              }
+            });
+          });
+          
+          // Sort by timestamp (oldest first)
+          const sortedComments = allRelevantComments.sort(
             (a, b) => new Date(a.createdTime) - new Date(b.createdTime)
           );
+          
+          console.log('📊 Filtered comments for conversation:', sortedComments);
           setComments(sortedComments);
         } else {
           setComments([]);
@@ -398,9 +463,13 @@ const UnifiedChatInterface = ({ item, type, pageId, pageAccessToken, selectedPag
         });
         
         if (response.data.success) {
-          // Remove the optimistic message as the real one will come via WebSocket
+          // Update the optimistic message to confirmed status instead of removing it
           setMessages(prevMessages => 
-            prevMessages.filter(msg => msg.messageId !== optimisticMessage.messageId)
+            prevMessages.map(msg => 
+              msg.messageId === optimisticMessage.messageId 
+                ? { ...msg, pending: false, messageId: response.data.messageId || msg.messageId }
+                : msg
+            )
           );
         } else {
           // Remove optimistic message on failure
@@ -447,6 +516,10 @@ const UnifiedChatInterface = ({ item, type, pageId, pageAccessToken, selectedPag
           };
           
           setComments(prevComments => {
+            // Check if this reply already exists to avoid duplicates
+            const existingReply = prevComments.find(c => c.commentId === newReply.commentId);
+            if (existingReply) return prevComments;
+            
             const updated = [...prevComments, newReply];
             return updated.sort((a, b) => 
               new Date(a.createdTime) - new Date(b.createdTime)
@@ -456,12 +529,30 @@ const UnifiedChatInterface = ({ item, type, pageId, pageAccessToken, selectedPag
           // Clear the selected comment after replying
           setSelectedCommentForReply(null);
           
-          // Refresh comments after a delay to get the real reply from the server
-          setTimeout(() => fetchComments(), 2000);
+          // Show success notification
+          setNotification({
+            type: 'success',
+            message: 'Reply posted successfully!'
+          });
+          
+          // Clear notification after 3 seconds
+          setTimeout(() => setNotification(null), 3000);
+          
+          // The socket event will handle refreshing for other users
+          // No need to refresh immediately here
         }
       }
     } catch (error) {
       console.error('Error sending message:', error);
+      
+      // Show error notification
+      setNotification({
+        type: 'error',
+        message: 'Failed to send reply. Please try again.'
+      });
+      
+      // Clear notification after 5 seconds
+      setTimeout(() => setNotification(null), 5000);
       
       // On error, restore the message
       setNewMessage(messageText);
@@ -547,11 +638,32 @@ const UnifiedChatInterface = ({ item, type, pageId, pageAccessToken, selectedPag
   }
 
   return (
-    <div className="bg-gray-50 flex-1 h-full flex flex-col">
+    <div className="flex-1 h-full flex flex-col" style={{backgroundColor: '#f6f6f7'}}>
+      {/* Notification */}
+      {notification && (
+        <div className={`mx-4 mt-2 p-3 rounded-lg border ${
+          notification.type === 'success' 
+            ? 'bg-gray-100 border-gray-400 text-gray-800' 
+            : 'bg-gray-50 border-gray-300 text-gray-700'
+        }`}>
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium flex items-center">
+              {notification.type === 'success' ? '✓' : '⚠️'} {notification.message}
+            </span>
+            <button 
+              onClick={() => setNotification(null)}
+              className="text-gray-500 hover:text-gray-700"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
+      
       {/* Header - Conditional rendering based on sidebar visibility */}
       {sidebarVisible ? (
         <div className="px-8 py-4 border-b bg-white flex justify-between items-center">
-          <span className="text-xl font-semibold ml-7">
+          <span className="text-xl font-bold font-roboto ml-7">
             {type === 'conversation' 
               ? item.customerName || 'Unknown Customer'
               : `${item.userName || 'Unknown User'}'s Comments`
@@ -568,7 +680,7 @@ const UnifiedChatInterface = ({ item, type, pageId, pageAccessToken, selectedPag
       ) : (
         <div className="px-8 py-4 border-b bg-white flex justify-between items-center">
           <div className="flex items-center ml-12">
-            <h2 className="text-xl font-medium">{getCurrentName()}</h2>
+            <h2 className="text-xl font-bold font-roboto">{getCurrentName()}</h2>
             <span className="text-sm text-gray-600 ml-2">
               {type === 'conversation' ? '(Facebook DM)' : '(Facebook Post)'}
             </span>
@@ -611,10 +723,10 @@ const UnifiedChatInterface = ({ item, type, pageId, pageAccessToken, selectedPag
                     const senderName = message.from?.name || message.senderName || 
                                      (isFromPage ? 'You' : item.customerName || 'Customer');
                     
-                    // Get profile pictures
+                    // Get profile pictures - improved handling
                     const profilePic = isFromPage 
-                      ? item.pageProfilePic || userImage // Page profile pic
-                      : item.customerProfilePic || message.profilePic || message.from?.profile_pic || userImage; // Customer profile pic
+                      ? (selectedPage?.profilePic || item.pageProfilePic || userImage) // Page profile pic
+                      : (item.customerProfilePic || message.profilePic || message.from?.picture?.data?.url || message.from?.picture || userImage); // Customer profile pic
 
                     // Determine message type for styling
                     let messageType = "both";
@@ -678,7 +790,7 @@ const UnifiedChatInterface = ({ item, type, pageId, pageAccessToken, selectedPag
                   </div>
                 ) : (
                   Object.values(groupedComments).map((postGroup) => (
-                    <div key={postGroup.postId}>
+                    <div key={postGroup.postId} className="mb-6">
                       <PostHeader post={postGroup} />
                       {postGroup.comments.map((comment, index) => {
                         // Determine if the comment is from the page or customer
@@ -689,7 +801,7 @@ const UnifiedChatInterface = ({ item, type, pageId, pageAccessToken, selectedPag
                         
                         const profilePic = isPageComment
                           ? (selectedPage?.profilePic || userImage)
-                          : (item.userPicture || comment.from?.picture?.data?.url || userImage);
+                          : (item.userPicture || comment.from?.picture?.data?.url || comment.from?.picture || userImage);
                         
                         // Determine message type for styling
                         let messageType = "both";
@@ -726,25 +838,41 @@ const UnifiedChatInterface = ({ item, type, pageId, pageAccessToken, selectedPag
                         }
 
                         return isPageComment ? (
-                          <SelfMessage 
-                            key={comment.commentId}
-                            message={comment}
-                            senderName={senderName}
-                            profilePic={profilePic}
-                            type={messageType}
-                            isComment={true}
-                            isReply={comment.isReply}
-                          />
+                          <div key={comment.commentId} className="mb-2">
+                            <SelfMessage 
+                              message={comment}
+                              senderName={senderName}
+                              profilePic={profilePic}
+                              type={messageType}
+                              isComment={true}
+                              isReply={comment.isReply}
+                            />
+                          </div>
                         ) : (
-                          <OthersMessage
+                          <div 
                             key={comment.commentId}
-                            message={comment}
-                            senderName={senderName}
-                            profilePic={profilePic}
-                            type={messageType}
-                            isComment={true}
-                            isReply={comment.isReply}
-                          />
+                            className={`cursor-pointer transition-all duration-200 rounded-lg p-2 mb-2 ${
+                              selectedCommentForReply?.commentId === comment.commentId 
+                                ? 'bg-gray-50 border border-gray-300' 
+                                : 'hover:bg-gray-50'
+                            }`}
+                            onClick={() => setSelectedCommentForReply(comment)}
+                            title="Click to select this comment for reply"
+                          >
+                            <OthersMessage
+                              message={comment}
+                              senderName={senderName}
+                              profilePic={profilePic}
+                              type={messageType}
+                              isComment={true}
+                              isReply={comment.isReply}
+                            />
+                            {selectedCommentForReply?.commentId === comment.commentId && (
+                              <div className="text-xs text-gray-500 mt-1 px-2">
+                                ✓ Selected for reply
+                              </div>
+                            )}
+                          </div>
                         );
                       })}
                     </div>
@@ -761,17 +889,28 @@ const UnifiedChatInterface = ({ item, type, pageId, pageAccessToken, selectedPag
       <div className="w-full max-w-[800px] self-center my-4 mb-6 px-4">
         {/* Selected Comment for Reply indicator (only in comments mode) */}
         {type === 'comments' && selectedCommentForReply && (
-          <div className="mb-2 flex items-center justify-between">
-            <span className="text-xs text-blue-600">
-              <span className="rounded-full bg-blue-100 px-1.5 py-0.5 mr-1">↩️</span> 
-              Replying to comment
-            </span>
-            <button
-              onClick={() => setSelectedCommentForReply(null)}
-              className="text-xs text-gray-500 hover:text-gray-700"
-            >
-              Cancel
-            </button>
+          <div className="mb-3 p-3 bg-gray-100 border border-gray-300 rounded-lg">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center">
+                <span className="text-sm font-medium text-gray-800">
+                  Replying to comment by {selectedCommentForReply.from?.name || 'User'}
+                </span>
+                <span className="ml-2 bg-gray-200 text-gray-700 text-xs px-2 py-1 rounded-full">
+                  Selected
+                </span>
+              </div>
+              <button
+                onClick={() => setSelectedCommentForReply(null)}
+                className="text-gray-600 hover:text-gray-800 text-sm font-medium"
+              >
+                ✕ Cancel
+              </button>
+            </div>
+            <div className="text-sm text-gray-700 bg-white p-2 rounded border border-gray-200">
+              "{selectedCommentForReply.message?.length > 100 
+                ? selectedCommentForReply.message.substring(0, 100) + '...'
+                : selectedCommentForReply.message}"
+            </div>
           </div>
         )}
         
@@ -800,7 +939,9 @@ const UnifiedChatInterface = ({ item, type, pageId, pageAccessToken, selectedPag
               }}
               placeholder={
                 type === 'comments' && !selectedCommentForReply
-                  ? "Select a comment to reply to..."
+                  ? "Select a comment above to reply to..."
+                  : type === 'comments' && selectedCommentForReply
+                  ? `Reply to ${selectedCommentForReply.from?.name || 'User'}...`
                   : "Type your message..."
               }
               className="w-full outline-none px-2 py-1"
@@ -821,9 +962,9 @@ const UnifiedChatInterface = ({ item, type, pageId, pageAccessToken, selectedPag
                   type="button"
                   onClick={handlePrivateMessage}
                   disabled={!newMessage.trim() || sending}
-                  className="text-xs bg-gray-50 hover:bg-gray-100 text-gray-500 px-2 py-1 rounded border border-gray-200"
+                  className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1 rounded border border-gray-300"
                 >
-                  Private
+                  Private Message
                 </button>
               )}
             </div>
@@ -832,7 +973,7 @@ const UnifiedChatInterface = ({ item, type, pageId, pageAccessToken, selectedPag
         
         {type === 'comments' && !selectedCommentForReply && (
           <div className="mt-2 text-xs text-gray-500 text-center">
-            Click on a comment to reply
+            💬 Click on any comment above to select it for reply
           </div>
         )}
       </div>
