@@ -464,12 +464,30 @@ const ChatInterface = ({ item, type, pageId, pageAccessToken }) => {
 
                     // Determine message type for styling
                     let messageType = "both";
-                    if (index > 0 && index < messages.length - 1) {
-                      const prevFromSameUser = messages[index-1].from?.id === message.from?.id ||
-                        messages[index-1].senderId === message.senderId;
-                      const nextFromSameUser = messages[index+1].from?.id === message.from?.id ||
-                        messages[index+1].senderId === message.senderId;
-                        
+                    
+                    // Helper function to check if two messages are within 2 minutes
+                    const isWithinTimeLimit = (msg1, msg2) => {
+                      if (!msg1 || !msg2) return false;
+                      const time1 = new Date(msg1.timestamp || msg1.created_time || msg1.createdAt).getTime();
+                      const time2 = new Date(msg2.timestamp || msg2.created_time || msg2.createdAt).getTime();
+                      const diffInMinutes = Math.abs(time1 - time2) / (1000 * 60);
+                      return diffInMinutes <= 2;
+                    };
+                    
+                    if (index >= 0 && index < messages.length) {
+                      const prevMessage = index > 0 ? messages[index - 1] : null;
+                      const nextMessage = index < messages.length - 1 ? messages[index + 1] : null;
+                      
+                      const prevFromSameUser = prevMessage && (
+                        (prevMessage.from?.id === message.from?.id) ||
+                        (prevMessage.senderId === message.senderId)
+                      ) && isWithinTimeLimit(message, prevMessage);
+                      
+                      const nextFromSameUser = nextMessage && (
+                        (nextMessage.from?.id === message.from?.id) ||
+                        (nextMessage.senderId === message.senderId)
+                      ) && isWithinTimeLimit(message, nextMessage);
+                      
                       if (prevFromSameUser && nextFromSameUser) {
                         messageType = "none";
                       } else if (prevFromSameUser) {

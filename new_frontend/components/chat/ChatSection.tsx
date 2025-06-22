@@ -129,13 +129,31 @@ const ChatSection = () => {
   }, [chat_id]);
 
   const messageType = (index: number, mode: "self" | "other") => {
-    const logic = {
-      first: index == 0 || chats[index - 1].mode !== mode,
-      last: index == chats.length - 1 || chats[index + 1].mode !== mode,
+    const currentMessage = chats[index];
+    const prevMessage = index > 0 ? chats[index - 1] : null;
+    const nextMessage = index < chats.length - 1 ? chats[index + 1] : null;
+    
+    // Helper function to check if two messages are within 2 minutes
+    const isWithinTimeLimit = (msg1: ChatProps, msg2: ChatProps): boolean => {
+      const time1 = new Date(msg1.createdAt).getTime();
+      const time2 = new Date(msg2.createdAt).getTime();
+      const diffInMinutes = Math.abs(time1 - time2) / (1000 * 60);
+      return diffInMinutes <= 2;
     };
-    if (logic.first && logic.last) return "both";
-    else if (logic.first) return "first";
-    else if (logic.last) return "last";
+    
+    // Check if this is the first message or sender changed or time gap > 2 minutes
+    const isFirst = index === 0 || 
+                   prevMessage?.mode !== mode || 
+                   !isWithinTimeLimit(currentMessage, prevMessage);
+    
+    // Check if this is the last message or sender will change or time gap > 2 minutes
+    const isLast = index === chats.length - 1 || 
+                  nextMessage?.mode !== mode || 
+                  !isWithinTimeLimit(currentMessage, nextMessage);
+    
+    if (isFirst && isLast) return "both";
+    else if (isFirst) return "first";
+    else if (isLast) return "last";
     else return "none";
   };
 

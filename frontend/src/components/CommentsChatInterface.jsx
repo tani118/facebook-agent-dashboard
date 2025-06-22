@@ -246,7 +246,7 @@ const CommentsChatInterface = ({ selectedPage, pageAccessToken }) => {
             <h2 className="text-lg font-semibold text-gray-800">Comments</h2>
             <button
               onClick={fetchAllComments}
-              className="text-blue-600 hover:text-blue-800 text-sm"
+              className="text-gray-600 hover:text-black text-sm"
               disabled={loading}
             >
               {loading ? '🔄' : '↻'} Refresh
