@@ -8,7 +8,6 @@ const { createServer } = require('http');
 const { Server } = require('socket.io');
 const connectDB = require('./config/database');
 
-// Import routes
 const authRoutes = require('./routes/auth');
 const facebookRoutes = require('./routes/facebook');
 const conversationRoutes = require('./routes/conversations');
@@ -20,22 +19,20 @@ const commentsRoutes = require('./routes/comments');
 const app = express();
 const server = createServer(app);
 
-// Setup Socket.IO with CORS
 const io = new Server(server, {
   cors: {
     origin: [
       process.env.FRONTEND_URL || 'http://localhost:5173',
       'http://localhost:5174',
       'http://localhost:5175',
-      'http://localhost:5176', // Current frontend port
-      'http://127.0.0.1:5176', // IPv4 explicit
-      'http://[::1]:5176',     // IPv6 explicit
+      'http://localhost:5176',
+      'http://127.0.0.1:5176',
+      'http://[::1]:5176',
       'http://localhost:5177',
-      'https://6de4-103-108-5-157.ngrok-free.app', // Current ngrok URL
+      'https://6de4-103-108-5-157.ngrok-free.app',
       'https://b1d4-103-108-5-157.ngrok-free.app',
       'https://eca5-103-108-5-157.ngrok-free.app',
-      'https://6de4-103-108-5-157.ngrok-free.app',
-      'file://' // Allow file protocol for local testing
+      'file://'
     ],
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
@@ -43,7 +40,6 @@ const io = new Server(server, {
   },
   allowEIO3: true,
   transports: ['polling', 'websocket'],
-  // Additional ngrok-friendly options
   pingTimeout: 60000,
   pingInterval: 25000,
   maxHttpBufferSize: 1e6,

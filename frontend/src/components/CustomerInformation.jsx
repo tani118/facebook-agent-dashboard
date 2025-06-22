@@ -3,12 +3,10 @@ import UserImageDefault from '../assets/user.png';
 import { PhoneCall, User } from 'lucide-react';
 
 const CustomerInformation = ({ customer }) => {
-  // Extract customer details with fallbacks
   const firstName = customer?.firstName || customer?.first_name || customer?.name?.split(' ')[0] || "Anonymous";
   const lastName = customer?.lastName || customer?.last_name || customer?.name?.split(' ')[1] || "";
   const fullName = customer?.name || `${firstName} ${lastName}`.trim();
   const customerId = customer?.id || "-";
-  // Use a default profile picture if none is provided or if the URL doesn't seem valid
   const hasValidProfilePic = customer?.profilePic && 
     (customer.profilePic.startsWith('http') || customer.profilePic.startsWith('/'));
   const profilePic = hasValidProfilePic ? customer.profilePic : UserImageDefault;
@@ -49,7 +47,6 @@ const CustomerInformation = ({ customer }) => {
           </div>
         </div>
         
-        {/* Light separator line */}
         <div className="border-b border-gray-200"></div>
 
         <div className="w-full p-4 pt-3">

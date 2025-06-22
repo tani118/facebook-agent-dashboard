@@ -4,16 +4,13 @@ import socketService from '../services/socketService';
 import userImage from '../assets/user.png';
 import { SendHorizontal, RefreshCw } from 'lucide-react';
 
-// Format the message timestamps
 const formatMessageTime = (time) => {
   try {
     const date = new Date(time);
     const currentDate = new Date();
     const year = date.getFullYear();
 
-    // If the year is the current year
     if (year === currentDate.getFullYear() || isNaN(date.getTime())) {
-      // If date is invalid, use current date as fallback
       const dateToUse = isNaN(date.getTime()) ? currentDate : date;
       
       return `${dateToUse.toLocaleString("en-US", {
@@ -36,8 +33,6 @@ const formatMessageTime = (time) => {
       })}`;
     }
   } catch (error) {
-    console.error('Error formatting date:', error);
-    // Fallback to current date
     const currentDate = new Date();
     return `${currentDate.toLocaleString("en-US", {
       month: "short",
@@ -51,9 +46,8 @@ const formatMessageTime = (time) => {
 };
 
 const SelfMessage = ({ message, senderName, profilePic, type = "both", isComment = false, isReply = false }) => {
-  // Always show icons and time - simplified for profile picture visibility
-  const isIconVisible = true; // Always show profile pictures
-  const isTimeVisible = true; // Always show details (sender name and timestamp)
+  const isIconVisible = true;
+  const isTimeVisible = true;
   
   const timestamp = message.timestamp || message.created_time || message.createdAt || new Date().toString();
   
@@ -86,9 +80,8 @@ const SelfMessage = ({ message, senderName, profilePic, type = "both", isComment
 
 const OthersMessage = ({ message, senderName, profilePic, type = "both", isComment = false, isReply = false }) => {
   const timestamp = message.timestamp || message.created_time || message.createdAt || new Date().toString();
-  // Always show icons and time - simplified for profile picture visibility
-  const isIconVisible = true; // Always show profile pictures
-  const isTimeVisible = true; // Always show details (sender name and timestamp)
+  const isIconVisible = true;
+  const isTimeVisible = true;
   
   return (
     <div className={`flex flex-col ${type === "last" || type === "both" ? "mb-4" : "mb-1"} ${isReply ? 'ml-12' : ''}`}>
@@ -140,7 +133,6 @@ const UnifiedChatInterface = ({ item, type, pageId, pageAccessToken, selectedPag
   const chatBoxRef = useRef(null);
   const commentRefreshTimeoutRef = useRef(null);
   
-  // Group comments by postId for organization
   const groupedComments = comments.reduce((groups, comment) => {
     const postId = comment.postId;
     if (!groups[postId]) {
@@ -160,16 +152,14 @@ const UnifiedChatInterface = ({ item, type, pageId, pageAccessToken, selectedPag
       if (type === 'conversation') {
         fetchMessages();
         
-        // Set up real-time message handler for this conversation
         const handleNewMessage = (data) => {
           if (data.conversationId === item.conversationId || data.conversationId === item.id) {
             
-            // Check if this is our own message
             const isOwnMessage = data.message.senderId === pageId || data.message.type === 'outgoing';
             
             if (isOwnMessage) {
               console.log('🚫 Received own message from socket - updating existing message if needed');
-              // For our own messages, just update any pending messages to confirmed
+   
               setMessages(prevMessages => 
                 prevMessages.map(msg => 
                   msg.pending && msg.content === data.message.content
@@ -182,9 +172,7 @@ const UnifiedChatInterface = ({ item, type, pageId, pageAccessToken, selectedPag
             
             console.log('📩 Received new message for current conversation:', data);
             
-            // Add the new incoming message to the current messages
             setMessages(prevMessages => {
-              // Check if message already exists to avoid duplicates
               const messageExists = prevMessages.some(msg => 
                 msg.messageId === data.message.messageId || 
                 msg.id === data.message.messageId
@@ -202,7 +190,6 @@ const UnifiedChatInterface = ({ item, type, pageId, pageAccessToken, selectedPag
                   type: data.message.type
                 };
                 
-                // Insert in chronological order
                 const updated = [...prevMessages, newMsg];
                 return updated.sort((a, b) => 
                   new Date(a.timestamp || a.created_time) - new Date(b.timestamp || b.created_time)
@@ -222,13 +209,10 @@ const UnifiedChatInterface = ({ item, type, pageId, pageAccessToken, selectedPag
       } else if (type === 'comments') {
         fetchComments();
         
-        // Set up real-time comment notifications
         const handleNewComment = (data) => {
           console.log('📩 New comment/reply received:', data);
           
-          // Check if this comment is for the current conversation/user
           if (data.pageId === pageId) {
-            // Use debounced refresh to avoid multiple rapid API calls
             if (commentRefreshTimeoutRef.current) {
               clearTimeout(commentRefreshTimeoutRef.current);
             }
@@ -294,7 +278,6 @@ const UnifiedChatInterface = ({ item, type, pageId, pageAccessToken, selectedPag
     try {
       const conversationId = item.conversationId || item.id;
       
-      // First try to sync messages from Facebook API
       if (pageAccessToken && pageId) {
         try {
           console.log('🔄 Attempting to sync messages:', {
@@ -320,7 +303,6 @@ const UnifiedChatInterface = ({ item, type, pageId, pageAccessToken, selectedPag
         });
       }
 
-      // Then fetch messages from local database
       const response = await axios.get(`/conversations/${conversationId}/messages`, {
         params: {
           pageId: pageId,
@@ -329,14 +311,12 @@ const UnifiedChatInterface = ({ item, type, pageId, pageAccessToken, selectedPag
       });
       
       if (response.data.success) {
-        // Sort messages by timestamp in ascending order (oldest first for chat display)
         const sortedMessages = (response.data.data.messages || [])
           .sort((a, b) => new Date(a.timestamp || a.created_time) - new Date(b.timestamp || b.created_time));
         setMessages(sortedMessages);
       }
     } catch (error) {
       console.error('Error fetching messages:', error);
-      // Fallback to direct Facebook API
       if (pageAccessToken) {
         try {
           const fallbackResponse = await axios.get(`/facebook/conversations/${conversationId}/messages`, {
@@ -346,7 +326,6 @@ const UnifiedChatInterface = ({ item, type, pageId, pageAccessToken, selectedPag
             }
           });
           if (fallbackResponse.data.success) {
-            // Sort Facebook API messages by timestamp (oldest first)
             const sortedMessages = (fallbackResponse.data.data.data || [])
               .sort((a, b) => new Date(a.created_time) - new Date(b.created_time));
             setMessages(sortedMessages);
@@ -377,26 +356,19 @@ const UnifiedChatInterface = ({ item, type, pageId, pageAccessToken, selectedPag
       if (response.data.success) {
         console.log('📊 Comments data received:', response.data.data);
         
-        // Get all comments for this user's posts and replies
         const userComments = response.data.data.userComments.find(
           userGroup => userGroup.userId === item.userId
         );
         
         if (userComments) {
-          // Get all comments from all posts this user has commented on
           const allRelevantComments = [];
           
-          // First, add all the user's comments
           allRelevantComments.push(...userComments.comments);
           
-          // Get all post IDs where this user has commented
           const userPostIds = userComments.comments.map(c => c.postId);
           
-          // Then, find ALL comments on those posts (including from other users and admins)
           response.data.data.userComments.forEach(userGroup => {
             userGroup.comments.forEach(comment => {
-              // Include comment if it's on a post where our user has commented
-              // and it's not already included (avoid duplicates)
               if (userPostIds.includes(comment.postId) && 
                   !allRelevantComments.some(existing => existing.commentId === comment.commentId)) {
                 allRelevantComments.push(comment);
@@ -404,7 +376,6 @@ const UnifiedChatInterface = ({ item, type, pageId, pageAccessToken, selectedPag
             });
           });
           
-          // Sort by timestamp (oldest first)
           const sortedComments = allRelevantComments.sort(
             (a, b) => new Date(a.createdTime) - new Date(b.createdTime)
           );
@@ -431,10 +402,8 @@ const UnifiedChatInterface = ({ item, type, pageId, pageAccessToken, selectedPag
     
     try {
       if (type === 'conversation') {
-        // Clear input immediately for better UX
         setNewMessage('');
         
-        // Add optimistic message update (will be confirmed via WebSocket)
         const optimisticMessage = {
           messageId: `temp-${Date.now()}`,
           senderId: pageId,
@@ -453,7 +422,6 @@ const UnifiedChatInterface = ({ item, type, pageId, pageAccessToken, selectedPag
           );
         });
         
-        // Use conversationId for conversations
         const conversationId = item.conversationId || item.id;
         
         const response = await axios.post(`/facebook/conversations/${conversationId}/send`, {
@@ -463,7 +431,6 @@ const UnifiedChatInterface = ({ item, type, pageId, pageAccessToken, selectedPag
         });
         
         if (response.data.success) {
-          // Update the optimistic message to confirmed status instead of removing it
           setMessages(prevMessages => 
             prevMessages.map(msg => 
               msg.messageId === optimisticMessage.messageId 
@@ -472,14 +439,12 @@ const UnifiedChatInterface = ({ item, type, pageId, pageAccessToken, selectedPag
             )
           );
         } else {
-          // Remove optimistic message on failure
           setMessages(prevMessages => 
             prevMessages.filter(msg => msg.messageId !== optimisticMessage.messageId)
           );
-          setNewMessage(messageText); // Restore the message
+          setNewMessage(messageText); 
         }
       } else if (type === 'comments') {
-        // For comments, we need to select which comment to reply to
         if (!selectedCommentForReply) {
           alert('Please select a comment to reply to.');
           setSending(false);
@@ -500,7 +465,6 @@ const UnifiedChatInterface = ({ item, type, pageId, pageAccessToken, selectedPag
         );
 
         if (response.data.success) {
-          // Success! Add the reply to the local state for immediate feedback
           const newReply = {
             commentId: response.data.data.id || `temp-${Date.now()}`,
             message: messageText,
@@ -516,7 +480,6 @@ const UnifiedChatInterface = ({ item, type, pageId, pageAccessToken, selectedPag
           };
           
           setComments(prevComments => {
-            // Check if this reply already exists to avoid duplicates
             const existingReply = prevComments.find(c => c.commentId === newReply.commentId);
             if (existingReply) return prevComments;
             
@@ -526,35 +489,27 @@ const UnifiedChatInterface = ({ item, type, pageId, pageAccessToken, selectedPag
             );
           });
           
-          // Clear the selected comment after replying
           setSelectedCommentForReply(null);
           
-          // Show success notification
           setNotification({
             type: 'success',
             message: 'Reply posted successfully!'
           });
           
-          // Clear notification after 3 seconds
           setTimeout(() => setNotification(null), 3000);
           
-          // The socket event will handle refreshing for other users
-          // No need to refresh immediately here
         }
       }
     } catch (error) {
       console.error('Error sending message:', error);
       
-      // Show error notification
       setNotification({
         type: 'error',
         message: 'Failed to send reply. Please try again.'
       });
       
-      // Clear notification after 5 seconds
       setTimeout(() => setNotification(null), 5000);
       
-      // On error, restore the message
       setNewMessage(messageText);
     } finally {
       setSending(false);
@@ -607,12 +562,10 @@ const UnifiedChatInterface = ({ item, type, pageId, pageAccessToken, selectedPag
   };
 
   const isFromPage = (comment) => {
-    // Check if comment is from the page (your replies)
     if (pageId && comment.from && comment.from.id === pageId) {
       return true;
     }
     
-    // Alternative check using authorId for processed comments
     if (pageId && comment.authorId === pageId) {
       return true;
     }
@@ -620,7 +573,6 @@ const UnifiedChatInterface = ({ item, type, pageId, pageAccessToken, selectedPag
     return false;
   };
 
-  // Get the name of the current person/customer
   const getCurrentName = () => {
     if (type === 'conversation') {
       return item.customerName || `${item.customerFirstName || ''} ${item.customerLastName || ''}`.trim() || 'Unknown Customer';
@@ -639,7 +591,7 @@ const UnifiedChatInterface = ({ item, type, pageId, pageAccessToken, selectedPag
 
   return (
     <div className="flex-1 h-full flex flex-col" style={{backgroundColor: '#f6f6f7'}}>
-      {/* Notification */}
+      
       {notification && (
         <div className={`mx-4 mt-2 p-3 rounded-lg border ${
           notification.type === 'success' 
@@ -660,7 +612,6 @@ const UnifiedChatInterface = ({ item, type, pageId, pageAccessToken, selectedPag
         </div>
       )}
       
-      {/* Header - Conditional rendering based on sidebar visibility */}
       {sidebarVisible ? (
         <div className="px-8 py-4 border-b bg-white flex justify-between items-center">
           <span className="text-xl font-bold font-roboto ml-7">
@@ -695,7 +646,6 @@ const UnifiedChatInterface = ({ item, type, pageId, pageAccessToken, selectedPag
         </div>
       )}
 
-      {/* Messages/Comments Area */}
       <div 
         ref={chatBoxRef}
         className="flex flex-col flex-1 overflow-y-auto"
@@ -708,14 +658,12 @@ const UnifiedChatInterface = ({ item, type, pageId, pageAccessToken, selectedPag
           ) : (
             <>
               {type === 'conversation' ? (
-                // Regular Conversation Messages
                 messages.length === 0 ? (
                   <div className="text-center text-gray-500 p-10 w-full">
                     <p>No messages in this conversation yet</p>
                   </div>
                 ) : (
                   messages.map((message, index) => {
-                    // Handle both local database and Facebook API message formats
                     const isFromPage = message.from?.id === pageId || 
                                       message.senderId === pageId || 
                                       message.senderType === 'page';
@@ -723,15 +671,12 @@ const UnifiedChatInterface = ({ item, type, pageId, pageAccessToken, selectedPag
                     const senderName = message.from?.name || message.senderName || 
                                      (isFromPage ? 'You' : item.customerName || 'Customer');
                     
-                    // Get profile pictures - improved handling
                     const profilePic = isFromPage 
-                      ? (selectedPage?.profilePic || item.pageProfilePic || userImage) // Page profile pic
+                      ? (selectedPage?.profilePic || item.pageProfilePic || userImage) 
                       : (item.customerProfilePic || message.profilePic || message.from?.picture?.data?.url || message.from?.picture || userImage); // Customer profile pic
 
-                    // Determine message type for styling
                     let messageType = "both";
                     
-                    // Helper function to check if two messages are within 2 minutes
                     const isWithinTimeLimit = (msg1, msg2) => {
                       if (!msg1 || !msg2) return false;
                       const time1 = new Date(msg1.timestamp || msg1.created_time || msg1.createdAt).getTime();
@@ -783,7 +728,6 @@ const UnifiedChatInterface = ({ item, type, pageId, pageAccessToken, selectedPag
                   })
                 )
               ) : (
-                // Comments organized by post
                 comments.length === 0 ? (
                   <div className="text-center text-gray-500 p-10 w-full">
                     <p>No comments from this user yet</p>
@@ -793,7 +737,6 @@ const UnifiedChatInterface = ({ item, type, pageId, pageAccessToken, selectedPag
                     <div key={postGroup.postId} className="mb-6">
                       <PostHeader post={postGroup} />
                       {postGroup.comments.map((comment, index) => {
-                        // Determine if the comment is from the page or customer
                         const isPageComment = isFromPage(comment);
                         const senderName = isPageComment 
                           ? (selectedPage?.pageName || 'You')
@@ -803,11 +746,9 @@ const UnifiedChatInterface = ({ item, type, pageId, pageAccessToken, selectedPag
                           ? (selectedPage?.profilePic || userImage)
                           : (item.userPicture || comment.from?.picture?.data?.url || comment.from?.picture || userImage);
                         
-                        // Determine message type for styling
                         let messageType = "both";
                         const currentPostComments = postGroup.comments;
                         
-                        // Helper function to check if two comments are within 2 minutes
                         const isWithinTimeLimit = (comment1, comment2) => {
                           if (!comment1 || !comment2) return false;
                           const time1 = new Date(comment1.createdTime || comment1.created_time).getTime();
@@ -885,9 +826,7 @@ const UnifiedChatInterface = ({ item, type, pageId, pageAccessToken, selectedPag
         </div>
       </div>
 
-      {/* Message Input */}
       <div className="w-full max-w-[800px] self-center my-4 mb-6 px-4">
-        {/* Selected Comment for Reply indicator (only in comments mode) */}
         {type === 'comments' && selectedCommentForReply && (
           <div className="mb-3 p-3 bg-gray-100 border border-gray-300 rounded-lg">
             <div className="flex items-center justify-between mb-2">

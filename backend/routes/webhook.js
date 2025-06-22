@@ -8,20 +8,14 @@ const User = require('../models/User');
 
 // Webhook verification endpoint
 router.get('/', (req, res) => {
-  // Parse the query params
   const mode = req.query['hub.mode'];
   const token = req.query['hub.verify_token'];
   const challenge = req.query['hub.challenge'];
 
-  // Check if a token and mode is in the query string of the request
   if (mode && token) {
-    // Check the mode and token sent is correct
     if (mode === 'subscribe' && token === process.env.FACEBOOK_WEBHOOK_VERIFY_TOKEN) {
-      // Respond with the challenge token from the request
-      console.log('WEBHOOK_VERIFIED');
       res.status(200).send(challenge);
     } else {
-      // Respond with '403 Forbidden' if verify tokens do not match
       res.sendStatus(403);
     }
   } else {
@@ -29,26 +23,11 @@ router.get('/', (req, res) => {
   }
 });
 
-// Webhook event handler
 router.post('/', (req, res) => {
   const body = req.body;
 
-  console.log('🌐 WEBHOOK: Received webhook request:', {
-    object: body.object,
-    entryCount: body.entry?.length || 0,
-    timestamp: new Date().toISOString()
-  });
-
-  // Check if this is an event from a page subscription
   if (body.object === 'page') {
-    console.log('✅ WEBHOOK: Valid page subscription event');
-    
-    // Iterate over each entry - there may be multiple if batched
     body.entry.forEach(async (entry, index) => {
-      console.log(`🔄 WEBHOOK: Processing entry ${index + 1}/${body.entry.length}:`, {
-        entryId: entry.id,
-        hasMessaging: !!entry.messaging,
-        hasChanges: !!entry.changes,
         messagingCount: entry.messaging?.length || 0,
         changesCount: entry.changes?.length || 0
       });

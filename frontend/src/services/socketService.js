@@ -12,16 +12,9 @@ class SocketService {
       this.disconnect();
     }
 
-    // Determine socket URL based on environment
     const socketUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
     const isNgrok = socketUrl.includes('ngrok');
-    
-    console.log('🔌 Attempting to connect to socket server:', socketUrl);
-    console.log('🔌 Frontend running on:', window.location.origin);
-    console.log('🔌 Using socket URL from env:', import.meta.env.VITE_API_URL);
-    console.log('🔌 Is ngrok connection:', isNgrok);
 
-    // Configure socket options based on connection type
     const socketOptions = {
       autoConnect: true,
       reconnection: true,
@@ -31,14 +24,12 @@ class SocketService {
       timeout: 15000
     };
 
-    // For ngrok connections, use specific configuration
     if (isNgrok) {
-      socketOptions.transports = ['polling']; // Force polling for ngrok
-      socketOptions.upgrade = false; // Disable websocket upgrade
+      socketOptions.transports = ['polling']; 
+      socketOptions.upgrade = false; 
       socketOptions.extraHeaders = {
         'ngrok-skip-browser-warning': 'true'
       };
-      console.log('🔌 Using ngrok-optimized configuration');
     } else {
       socketOptions.transports = ['polling', 'websocket'];
     }
@@ -46,10 +37,8 @@ class SocketService {
     this.socket = io(socketUrl, socketOptions);
 
     this.socket.on('connect', () => {
-      console.log('🔌 Connected to server via WebSocket');
       this.isConnected = true;
       
-      // Join user-specific room
       if (userId) {
         this.socket.emit('join-user-room', userId);
       }
@@ -65,7 +54,6 @@ class SocketService {
       this.isConnected = false;
     });
 
-    // Set up event handlers
     this.setupEventHandlers();
 
     return this.socket;
@@ -89,26 +77,22 @@ class SocketService {
   setupEventHandlers() {
     if (!this.socket) return;
 
-    // Handle new message events
     this.socket.on('new-message', (data) => {
       console.log('📩 Received new message:', data);
       this.emitToHandlers('new-message', data);
     });
 
-    // Handle new comment events
     this.socket.on('new-comment', (data) => {
       console.log('💬 Received new comment:', data);
       this.emitToHandlers('new-comment', data);
     });
 
-    // Handle conversation updates
     this.socket.on('conversation-updated', (data) => {
       console.log('💬 Conversation updated:', data);
       this.emitToHandlers('conversation-updated', data);
     });
   }
 
-  // Event handler management
   on(event, handler) {
     if (!this.eventHandlers.has(event)) {
       this.eventHandlers.set(event, new Set());
@@ -134,7 +118,6 @@ class SocketService {
     }
   }
 
-  // Utility methods
   isSocketConnected() {
     return this.socket && this.isConnected;
   }
@@ -144,7 +127,6 @@ class SocketService {
   }
 }
 
-// Singleton instance
 const socketService = new SocketService();
 
 export default socketService;

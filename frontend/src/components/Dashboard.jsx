@@ -9,12 +9,11 @@ import Sidebar from './Sidebar';
 import socketService from '../services/socketService';
 import { ChevronLeft, Menu, RefreshCw } from 'lucide-react';
 
-
 const Dashboard = () => {
   const { user, logout } = useAuth();
   const [conversations, setConversations] = useState([]);
   const [commentUsers, setCommentUsers] = useState([]);
-  const [selectedItem, setSelectedItem] = useState(null); // conversation or comment thread
+  const [selectedItem, setSelectedItem] = useState(null);
   const [connectedPages, setConnectedPages] = useState([]);
   const [selectedPage, setSelectedPage] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -32,8 +31,6 @@ const Dashboard = () => {
       socketService.connect(user.id);
       
       const handleNewMessage = (data) => {
-        console.log('📩 Received new message via WebSocket:', data);
-        
         setConversations(prevConversations => {
           const updatedConversations = prevConversations.map(conv => {
             if (conv.conversationId === data.conversationId) {

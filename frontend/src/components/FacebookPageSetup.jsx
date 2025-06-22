@@ -21,14 +21,13 @@ const FacebookPageSetup = ({ onPageConnected }) => {
         setConnectedPages(response.data.data.pages || []);
       }
     } catch (error) {
-      console.error('Error fetching pages:', error);
+      setError('Failed to fetch pages');
     } finally {
       setLoading(false);
     }
   };
 
   const handleConnectFacebook = () => {
-    // Redirect to Facebook OAuth
     const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
     const oauthUrl = `${baseUrl.replace('/api', '')}/api/facebook-auth/`;
     window.location.href = oauthUrl;

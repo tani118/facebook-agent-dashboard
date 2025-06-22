@@ -28,12 +28,11 @@ const UnifiedConversationList = ({
     const now = new Date();
     const diffInHours = (now - date) / (1000 * 60 * 60);
     
-    
     if (diffInHours < 1) {
       return 'Now';
     } else if (diffInHours < 24) {
       return `${Math.floor(diffInHours)}h`;
-    } else if (diffInHours < 168) { // 7 days
+    } else if (diffInHours < 168) {
       return `${Math.floor(diffInHours / 24)}d`;
     } else {
       return date.toLocaleDateString();
@@ -92,7 +91,6 @@ const UnifiedConversationList = ({
     <div className="flex-1 overflow-y-auto flex flex-col items-start">
       {sortedItems.map((item) => {
         if (item.type === 'conversation') {
-          // Conversation Item
           const isSelected = selectedItem && selectedItem.type !== 'comments' && (
             selectedItem.id === item.id || 
             selectedItem.conversationId === item.id || 
@@ -111,7 +109,6 @@ const UnifiedConversationList = ({
                 isSelected ? 'bg-[#F6F6F6]' : ''
               }`}
             >
-              {/* First Row: Checkbox, Name + Type, Time */}
               <div className="flex w-full items-start justify-between">
                 <div className="flex items-center gap-3 flex-1">
                   <input type="checkbox" className="h-4 w-4" />
@@ -127,7 +124,6 @@ const UnifiedConversationList = ({
                 </span>
               </div>
   
-              {/* Second Row: Latest Message */}
               <div className="mt-2 pl-7">
                 <span className="text-sm text-gray-600 leading-relaxed">
                   {truncateText(getLastMessage(item), 45)}
@@ -136,10 +132,9 @@ const UnifiedConversationList = ({
             </div>
           );
         } else {
-          // Comment Item (from a Facebook user)
           const customerComments = item.comments.filter(c => c.from && c.from.id !== item.pageId).length;
           const pageReplies = item.comments.filter(c => c.from && c.from.id === item.pageId).length;
-          const latestComment = item.comments[0]; // Comments are already sorted newest first
+          const latestComment = item.comments[0];
           
           const isSelected = selectedItem && selectedItem.type === 'comments' && 
             selectedItem.userId === item.userId;
@@ -152,7 +147,6 @@ const UnifiedConversationList = ({
                 isSelected ? 'bg-[#F6F6F6]' : ''
               }`}
             >
-              {/* First Row: Checkbox, Name + Type, Time */}
               <div className="flex w-full items-start justify-between">
                 <div className="flex items-center gap-3 flex-1">
                   <input type="checkbox" className="h-4 w-4" />
@@ -168,7 +162,6 @@ const UnifiedConversationList = ({
                 </span>
               </div>
 
-              {/* Second Row: Latest Message */}
               <div className="mt-2 pl-7">
                 <span className="text-sm text-gray-600 leading-relaxed">
                   {latestComment ? truncateText(latestComment.message, 45) : ''}
