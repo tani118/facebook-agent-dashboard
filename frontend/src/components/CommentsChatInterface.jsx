@@ -547,9 +547,9 @@ const CommentsChatInterface = ({ selectedPage, pageAccessToken }) => {
                     placeholder={
                       selectedCommentForReply 
                         ? `Reply to ${isFromPage(selectedCommentForReply) ? 'Admin' : getCommentAuthor(selectedCommentForReply).name}...`
-                        : `Select a comment to reply to ${selectedThread.userName}...`
+                        : `Message ${selectedThread.userName}`
                     }
-                    className="w-full p-3 border border-gray-300 rounded-lg resize-none focus:ring-2 focus:ring-gray-400 focus:border-transparent"
+                    className="w-full p-3 border-2 border-blue-500 rounded-lg resize-none focus:ring-2 focus:ring-blue-400 focus:border-blue-500"
                     rows="2"
                     onKeyPress={(e) => {
                       if (e.key === 'Enter' && !e.shiftKey && selectedCommentForReply) {

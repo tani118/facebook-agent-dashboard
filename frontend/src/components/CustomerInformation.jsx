@@ -59,9 +59,9 @@ const CustomerInformation = ({ customer }) => {
               <span className="text-gray-500 text-sm">Email</span>
               <span className="text-gray-800 text-sm font-medium">{customer?.email || "example@gmail.com"}</span>
               <span className="text-gray-500 text-sm">First Name</span>
-              <span className="text-gray-800 text-sm font-medium">{firstName}</span>
+              <span className="text-gray-800 text-sm font-medium text-right">{firstName}</span>
               <span className="text-gray-500 text-sm">Last Name</span>
-              <span className="text-gray-800 text-sm font-medium">{lastName}</span>
+              <span className="text-gray-800 text-sm font-medium text-right">{lastName}</span>
               
               <div className="col-span-2 mt-2 pt-2 border-t">
                 <a

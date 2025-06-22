@@ -337,7 +337,7 @@ const Dashboard = () => {
                 name: selectedItem.type === 'conversation'
                   ? selectedItem.customerName
                   : selectedItem.userName,
-                email: selectedItem.customerEmail || (selectedItem.type === 'comments' ? `${selectedItem.userName.replace(' ', '.').toLowerCase()}@example.com` : ''),
+                email: selectedItem.customerEmail || (selectedItem.type === 'comments' ? `example@gmail.com` : ''),
                 firstName: selectedItem.type === 'conversation'
                   ? selectedItem.customerFirstName
                   : selectedItem.userName.split(' ')[0],

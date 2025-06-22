@@ -914,7 +914,7 @@ const UnifiedChatInterface = ({ item, type, pageId, pageAccessToken, selectedPag
           </div>
         )}
         
-        <div className="w-full p-2 rounded-md border border-gray-300 outline-none bg-white shadow-sm">
+        <div className="w-full p-2 rounded-md border-2 border-blue-500 outline-none bg-white shadow-sm">
           <form 
             className="flex items-center gap-2"
             onSubmit={(e) => {
@@ -942,7 +942,7 @@ const UnifiedChatInterface = ({ item, type, pageId, pageAccessToken, selectedPag
                   ? "Select a comment above to reply to..."
                   : type === 'comments' && selectedCommentForReply
                   ? `Reply to ${selectedCommentForReply.from?.name || 'User'}...`
-                  : "Type your message..."
+                  : `Message ${getCurrentName()}`
               }
               className="w-full outline-none px-2 py-1"
               disabled={sending}
@@ -973,7 +973,7 @@ const UnifiedChatInterface = ({ item, type, pageId, pageAccessToken, selectedPag
         
         {type === 'comments' && !selectedCommentForReply && (
           <div className="mt-2 text-xs text-gray-500 text-center">
-            💬 Click on any comment above to select it for reply
+            Click on any comment above to select it for reply
           </div>
         )}
       </div>

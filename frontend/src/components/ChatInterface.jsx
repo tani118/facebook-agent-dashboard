@@ -630,7 +630,7 @@ const ChatInterface = ({ item, type, pageId, pageAccessToken }) => {
 
       {/* Message Input */}
       <div className="w-full max-w-[800px] self-center my-4 mx-8 mb-6">
-        <div className="w-full p-2 rounded-md border border-gray-300 outline-blue-600/60 bg-white shadow-sm">
+        <div className="w-full p-2 rounded-md border-2 border-blue-500 bg-white shadow-sm">
           <form 
             className="flex items-center gap-2"
             onSubmit={(e) => {
@@ -647,7 +647,7 @@ const ChatInterface = ({ item, type, pageId, pageAccessToken }) => {
                   setNewMessage(e.target.value);
                 }
               }}
-              placeholder="Message Here"
+              placeholder={`Message ${item.customerName || 'Customer'}`}
               className="w-full outline-none px-2 py-1"
               disabled={sending}
             />
