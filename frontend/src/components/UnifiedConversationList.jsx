@@ -1,6 +1,7 @@
 import React from 'react';
 import ConversationImg from '../assets/conversation.jpg';
 import userImage from '../assets/user.png';
+import { RefreshCw } from 'lucide-react';
 
 const EmptyChat = () => {
   return (
@@ -27,8 +28,9 @@ const UnifiedConversationList = ({
     const now = new Date();
     const diffInHours = (now - date) / (1000 * 60 * 60);
     
+    
     if (diffInHours < 1) {
-      return 'Just now';
+      return 'Now';
     } else if (diffInHours < 24) {
       return `${Math.floor(diffInHours)}h`;
     } else if (diffInHours < 168) { // 7 days
@@ -61,7 +63,7 @@ const UnifiedConversationList = ({
     return (
       <div className="flex-1 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+          <RefreshCw size={20} className="animate-spin text-gray-500 mx-auto" />
           <p className="mt-2 text-sm text-gray-500">Loading...</p>
         </div>
       </div>

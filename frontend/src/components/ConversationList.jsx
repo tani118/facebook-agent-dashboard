@@ -1,5 +1,6 @@
 import React from 'react';
 import ConversationImg from '../assets/conversation.jpg';
+import { RefreshCw } from 'lucide-react';
 
 const EmptyChat = () => {
   return (
@@ -77,7 +78,7 @@ const ConversationList = ({
     return (
       <div className="flex-1 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+          <RefreshCw size={20} className="animate-spin text-gray-500 mx-auto" />
           <p className="mt-2 text-sm text-gray-500">Loading...</p>
         </div>
       </div>

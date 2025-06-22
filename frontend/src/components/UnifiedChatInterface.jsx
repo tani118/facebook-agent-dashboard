@@ -559,11 +559,10 @@ const UnifiedChatInterface = ({ item, type, pageId, pageAccessToken, selectedPag
           </span>
           <button
             onClick={handleRefresh}
-            className="flex items-center gap-2 px-3 py-1.5 text-sm text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded"
+            className="p-2 text-gray-500 hover:text-gray-700 rounded"
             disabled={refreshing || loading}
           >
             <RefreshCw size={16} className={`${refreshing || loading ? 'animate-spin' : ''}`} />
-            <span>Refresh</span>
           </button>
         </div>
       ) : (
@@ -576,11 +575,10 @@ const UnifiedChatInterface = ({ item, type, pageId, pageAccessToken, selectedPag
           </div>
           <button
             onClick={handleRefresh}
-            className="flex items-center gap-2 px-3 py-1.5 text-sm text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded"
+            className="p-2 text-gray-500 hover:text-gray-700 rounded"
             disabled={refreshing || loading}
           >
             <RefreshCw size={16} className={`${refreshing || loading ? 'animate-spin' : ''}`} />
-            <span>Refresh</span>
           </button>
         </div>
       )}
@@ -593,7 +591,7 @@ const UnifiedChatInterface = ({ item, type, pageId, pageAccessToken, selectedPag
         <div className={`flex flex-col pt-4 ${sidebarVisible ? 'px-8' : 'px-16'} pb-20`}>
           {loading ? (
             <div className="flex justify-center w-full py-4">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+              <RefreshCw size={20} className="animate-spin text-gray-500" />
             </div>
           ) : (
             <>

@@ -19,8 +19,9 @@ const Profile: React.FC<ProfileProps> = ({
       <div className="w-full h-full">
         <div className="bg-white flex flex-col items-center py-10 border-b">
           <a
-            href="https://google.com"
+            href={customer_id !== "-" ? `https://www.facebook.com/${customer_id}` : "#"}
             target="_blank"
+            rel="noopener noreferrer"
             className="relative mb-2 group"
           >
             <img
@@ -42,10 +43,15 @@ const Profile: React.FC<ProfileProps> = ({
               <SlCallOut />
               <span>Call</span>
             </div>
-            <div className="flex gap-2 items-center px-3 py-0.5 rounded-lg border border-gray-400 font-medium text-gray-600 cursor-pointer">
+            <a 
+              href={customer_id !== "-" ? `https://www.facebook.com/${customer_id}` : "#"}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex gap-2 items-center px-3 py-0.5 rounded-lg border border-gray-400 font-medium text-gray-600 cursor-pointer hover:bg-gray-50"
+            >
               <FaUserCircle />
               <span>Profile</span>
-            </div>
+            </a>
           </div>
         </div>
 

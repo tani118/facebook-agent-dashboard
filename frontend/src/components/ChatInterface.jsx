@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import socketService from '../services/socketService';
 import userImage from '../assets/user.png';
-import { SendHorizontal } from 'lucide-react';
+import { SendHorizontal, RefreshCw } from 'lucide-react';
 
 // Format the message timestamps
 const formatMessageTime = (time) => {
@@ -197,7 +197,7 @@ const ChatInterface = ({ item, type, pageId, pageAccessToken }) => {
     const diffInHours = (now - date) / (1000 * 60 * 60);
     
     if (diffInHours < 1) {
-      return 'Just now';
+      return 'Now';
     } else if (diffInHours < 24) {
       return `${Math.floor(diffInHours)}h`;
     } else if (diffInHours < 168) { // 7 days
@@ -437,7 +437,7 @@ const ChatInterface = ({ item, type, pageId, pageAccessToken }) => {
         <div className="flex flex-col pt-4 px-8 pb-20">
           {loading ? (
             <div className="flex justify-center w-full py-4">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+              <RefreshCw size={20} className="animate-spin text-gray-500" />
             </div>
           ) : (
             <>

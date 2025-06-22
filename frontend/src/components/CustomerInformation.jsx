@@ -38,7 +38,7 @@ const CustomerInformation = ({ customer }) => {
               <span className="font-medium">Call</span>
             </a>
             <a 
-              href={customerId !== "-" ? `https://facebook.com/${customerId}` : "#"} 
+              href={customerId !== "-" ? `https://www.facebook.com/${customerId}` : "#"} 
               target="_blank" 
               rel="noopener noreferrer"
               className="flex items-center justify-center gap-2 px-3 py-1.5 rounded-md border border-gray-300 bg-white hover:bg-gray-50 text-gray-800 cursor-pointer w-1/2"
@@ -62,7 +62,7 @@ const CustomerInformation = ({ customer }) => {
               
               <div className="col-span-2 mt-2 pt-2 border-t">
                 <a
-                  href={customerId !== "-" ? `https://facebook.com/${customerId}` : "#"}
+                  href={customerId !== "-" ? `https://www.facebook.com/${customerId}` : "#"}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-blue-600 hover:text-blue-800 text-sm font-medium"

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import socketService from '../services/socketService';
+import { RefreshCw } from 'lucide-react';
 
 const CommentsView = ({ selectedPage, pageAccessToken }) => {
   const [commentsData, setCommentsData] = useState(null);
@@ -142,7 +143,7 @@ const CommentsView = ({ selectedPage, pageAccessToken }) => {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <RefreshCw size={20} className="animate-spin text-gray-500" />
         <span className="ml-2 text-gray-600">Loading comments...</span>
       </div>
     );

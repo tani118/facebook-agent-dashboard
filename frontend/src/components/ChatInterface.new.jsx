@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import socketService from '../services/socketService';
 import userImage from '../assets/user.png';
-import { SendHorizontal } from 'lucide-react';
+import { SendHorizontal, RefreshCw } from 'lucide-react';
 
 // Format the message timestamps
 const formatMessageTime = (time) => {
@@ -82,10 +82,9 @@ const SelfMessage = ({ message, senderName, profilePic, type = "both" }) => {
   );
 };
 
-const OthersMessage = ({ message, senderName, profilePic }) => {
+const OthersMessage = ({ message, senderName, profilePic, type = "both" }) => {
   const timestamp = message.timestamp || message.created_time || message.createdAt || new Date().toString();
   // Determine if icon and time should be visible based on message type
-  const type = "both"; // Default for now, can be made dynamic later
   const isIconVisible = type === "both" || type === "first";
   const isTimeVisible = type === "both" || type === "last";
   
@@ -435,7 +434,7 @@ const ChatInterface = ({ item, type, pageId, pageAccessToken }) => {
         <div className="flex flex-col pt-4 px-8">
           {loading ? (
             <div className="flex justify-center w-full py-4">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+              <RefreshCw size={20} className="animate-spin text-gray-500" />
             </div>
           ) : (
             <>

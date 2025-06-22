@@ -7,7 +7,7 @@ import CustomerInformation from './CustomerInformation';
 import FacebookPageSetup from './FacebookPageSetup';
 import Sidebar from './Sidebar';
 import socketService from '../services/socketService';
-import { ChevronLeft, Menu } from 'lucide-react';
+import { ChevronLeft, Menu, RefreshCw } from 'lucide-react';
 
 
 const Dashboard = () => {
@@ -285,9 +285,9 @@ const Dashboard = () => {
             <button
               onClick={fetchData}
               disabled={refreshing}
-              className="text-gray-500 hover:text-gray-700 text-lg flex items-center"
+              className="p-2 text-gray-500 hover:text-gray-700 rounded"
             >
-              <span className={refreshing ? "animate-spin" : ""}>↻</span>
+              <RefreshCw size={16} className={refreshing ? "animate-spin" : ""} />
             </button>
           </div>
 
