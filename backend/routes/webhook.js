@@ -28,8 +28,9 @@ router.post('/', (req, res) => {
 
   if (body.object === 'page') {
     body.entry.forEach(async (entry, index) => {
-        messagingCount: entry.messaging?.length || 0,
-        changesCount: entry.changes?.length || 0
+      console.log('Entry:', {
+        messagingCount: entry.messaging ? entry.messaging.length : 0,
+        changesCount: entry.changes ? entry.changes.length : 0
       });
       
       try {

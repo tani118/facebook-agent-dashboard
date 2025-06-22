@@ -344,6 +344,17 @@ const CommentsChatInterface = ({ selectedPage, pageAccessToken }) => {
                       src={userGroup.userPicture} 
                       alt={userGroup.userName}
                       className="w-12 h-12 rounded-full mr-3"
+                      onError={(e) => {
+                        // Try Facebook's default profile picture
+                        if (userGroup.userId && !e.target.src.includes('facebook-user-default')) {
+                          e.target.src = `https://graph.facebook.com/${userGroup.userId}/picture?type=large`;
+                        } else {
+                          // Final fallback - hide img and show div with initial
+                          e.target.style.display = 'none';
+                          const nextSibling = e.target.nextElementSibling;
+                          if (nextSibling) nextSibling.style.display = 'flex';
+                        }
+                      }}
                     />
                   ) : (
                     <div className="w-12 h-12 rounded-full bg-gradient-to-br from-gray-400 to-gray-600 flex items-center justify-center mr-3">

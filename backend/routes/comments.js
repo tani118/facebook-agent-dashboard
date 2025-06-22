@@ -100,14 +100,48 @@ router.get('/:pageId/all', verifyToken, async (req, res) => {
     const commentsByUser = {};
     
     allComments.forEach(comment => {
+      // Skip comments without proper from data
+      if (!comment || !comment.from) {
+        console.log('Skipping comment with missing from data:', comment?.id || 'unknown');
+        return;
+      }
+      
       const userId = comment.from.id;
       const userName = comment.from.name;
       
+      if (!userId) {
+        console.log('Skipping comment with missing user ID:', comment.id || 'unknown');
+        return;
+      }
+      
       if (!commentsByUser[userId]) {
+        // Extract picture URL - must handle different API response structures
+        let userPictureUrl = null;
+        
+        if (comment.from.picture) {
+          if (typeof comment.from.picture === 'object') {
+            if (comment.from.picture.data && comment.from.picture.data.url) {
+              userPictureUrl = comment.from.picture.data.url;
+            }
+          } else if (typeof comment.from.picture === 'string') {
+            userPictureUrl = comment.from.picture;
+          }
+        }
+        
+        // Generate default profile picture URL if missing
+        if (!userPictureUrl) {
+          // Use Facebook's default profile pic API if we have a Facebook user ID
+          if (userId && userId.match(/^\d+$/)) {
+            userPictureUrl = `https://graph.facebook.com/${userId}/picture?type=large`;
+          }
+        }
+        
+        console.log(`User ${userName} (ID: ${userId}) - Picture URL: ${userPictureUrl || 'NONE'}`);
+        
         commentsByUser[userId] = {
           userId: userId,
-          userName: userName,
-          userPicture: comment.from.picture?.data?.url || null,
+          userName: userName || 'Unknown User',
+          userPicture: userPictureUrl,
           totalComments: 0,
           comments: []
         };
@@ -115,9 +149,9 @@ router.get('/:pageId/all', verifyToken, async (req, res) => {
       
       commentsByUser[userId].totalComments++;
       commentsByUser[userId].comments.push({
-        commentId: comment.id,
-        message: comment.message,
-        createdTime: comment.created_time,
+        commentId: comment.id || `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        message: comment.message || '',
+        createdTime: comment.created_time || new Date().toISOString(),
         likeCount: comment.like_count || 0,
         replyCount: comment.comment_count || 0,
         postId: comment.postId,
@@ -145,6 +179,13 @@ router.get('/:pageId/all', verifyToken, async (req, res) => {
 
     // Sort users by their most recent comment
     userComments.sort((a, b) => new Date(b.lastCommentTime) - new Date(a.lastCommentTime));
+    
+    // Log profile picture URLs for debugging
+    console.log('Users with comments:', userComments.map(u => ({
+      name: u.userName,
+      pictureUrl: u.userPicture,
+      commentsCount: u.totalComments
+    })));
 
     res.json({
       success: true,

@@ -16,12 +16,21 @@ const FacebookPageSetup = ({ onPageConnected }) => {
 
   const fetchConnectedPages = async () => {
     try {
-      const response = await axios.get('/facebook-auth/connected-pages');
+      const token = localStorage.getItem('token');
+      const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
+      
+      const response = await axios.get(`${baseUrl}/facebook-auth/connected-pages`, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+      
       if (response.data.success) {
         setConnectedPages(response.data.data.pages || []);
       }
     } catch (error) {
       setError('Failed to fetch pages');
+      console.error('Error fetching pages:', error);
     } finally {
       setLoading(false);
     }
@@ -35,7 +44,15 @@ const FacebookPageSetup = ({ onPageConnected }) => {
 
   const handleDisconnectPage = async (pageId) => {
     try {
-      const response = await axios.delete(`/facebook-auth/disconnect-page/${pageId}`);
+      const token = localStorage.getItem('token');
+      const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
+      
+      const response = await axios.delete(`${baseUrl}/facebook-auth/disconnect-page/${pageId}`, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+      
       if (response.data.success) {
         setConnectedPages(connectedPages.filter(page => page.pageId !== pageId));
       }
