@@ -32,6 +32,8 @@ const io = new Server(server, {
       'https://6de4-103-108-5-157.ngrok-free.app',
       'https://b1d4-103-108-5-157.ngrok-free.app',
       'https://eca5-103-108-5-157.ngrok-free.app',
+            'https://facebook-agent-dashboard-2.vercel.app',
+      'https://facebook-agent-dashboard-2.onrender.com',
       'file://'
     ],
     credentials: true,
@@ -63,7 +65,9 @@ app.use(cors({
     'http://localhost:5173', // Allow local frontend explicitly
     'https://b1d4-103-108-5-157.ngrok-free.app', // Allow self-requests via ngrok
     'https://eca5-103-108-5-157.ngrok-free.app', // Current ngrok URL
-    'https://6de4-103-108-5-157.ngrok-free.app'
+    'https://6de4-103-108-5-157.ngrok-free.app',
+          'https://facebook-agent-dashboard-2.vercel.app',
+      'https://facebook-agent-dashboard-2.onrender.com',
   ],
   credentials: true
 }));

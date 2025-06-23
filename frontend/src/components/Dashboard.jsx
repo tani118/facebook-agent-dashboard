@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
 import UnifiedConversationList from './UnifiedConversationList';
@@ -7,6 +7,7 @@ import CustomerInformation from './CustomerInformation';
 import FacebookPageSetup from './FacebookPageSetup';
 import Sidebar from './Sidebar';
 import socketService from '../services/socketService';
+import { usePolling } from '../hooks/usePolling';
 import { ChevronLeft, Menu, RefreshCw } from 'lucide-react';
 
 const Dashboard = () => {
@@ -23,6 +24,39 @@ const Dashboard = () => {
   const toggleSidebar = () => {
     setSidebarVisible(prev => !prev);
   };
+  
+  const fetchConversationsAndComments = useCallback(async () => {
+    if (!selectedPage) return;
+    
+    try {
+      const token = localStorage.getItem('token');
+      const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
+      
+      const [conversationsResponse, commentsResponse] = await Promise.all([
+        axios.get(`${baseUrl}/conversations/${selectedPage.pageId}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        }),
+        axios.get(`${baseUrl}/comments/${selectedPage.pageId}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        })
+      ]);
+
+      if (conversationsResponse.data.success) {
+        const sortedConversations = (conversationsResponse.data.data || [])
+          .sort((a, b) => new Date(b.lastMessageAt) - new Date(a.lastMessageAt));
+        setConversations(sortedConversations);
+      }
+      
+      if (commentsResponse.data.success) {
+        setCommentUsers(commentsResponse.data.data);
+      }
+    } catch (error) {
+      console.error('Error fetching data:', error);
+    }
+  }, [selectedPage]);
+
+  // Enable polling when a page is selected
+  usePolling(fetchConversationsAndComments, 5000, !!selectedPage);
 
   useEffect(() => {
     fetchConnectedPages();
@@ -88,13 +122,13 @@ const Dashboard = () => {
 
   useEffect(() => {
     if (selectedPage) {
-      fetchData();
+      fetchConversationsAndComments();
       
       if (selectedPage.pageId) {
         socketService.joinPageRoom(selectedPage.pageId);
       }
     }
-  }, [selectedPage]);
+  }, [selectedPage, fetchConversationsAndComments]);
   
   useEffect(() => {
     if (selectedPage && selectedPage.pageId) {
@@ -115,7 +149,13 @@ const Dashboard = () => {
 
   const fetchConnectedPages = async () => {
     try {
-      const response = await axios.get('/facebook-auth/connected-pages');
+      const token = localStorage.getItem('token');
+      const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
+      
+      const response = await axios.get(`${baseUrl}/facebook-auth/connected-pages`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      
       if (response.data.success && response.data.data.pages) {
         setConnectedPages(response.data.data.pages);
         if (response.data.data.pages.length > 0) {
@@ -129,20 +169,15 @@ const Dashboard = () => {
     }
   };
 
-  const fetchData = async () => {
+  const handleRefresh = async () => {
     if (!selectedPage) return;
     
-    setLoading(true);
     setRefreshing(true);
     try {
-      await Promise.all([
-        fetchConversations(),
-        fetchComments()
-      ]);
+      await fetchConversationsAndComments();
     } catch (error) {
-      console.error('Error fetching data:', error);
+      console.error('Error refreshing data:', error);
     } finally {
-      setLoading(false);
       setRefreshing(false);
     }
   };
@@ -279,7 +314,7 @@ const Dashboard = () => {
               <h2 className="text-xl font-bold ml-14">Conversations</h2>
             </div>
             <button
-              onClick={fetchData}
+              onClick={handleRefresh}
               disabled={refreshing}
               className="p-2 text-gray-500 hover:text-gray-700 rounded"
             >

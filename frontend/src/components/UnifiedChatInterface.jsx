@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
 import socketService from '../services/socketService';
 import userImage from '../assets/user.png';
 import { SendHorizontal, RefreshCw } from 'lucide-react';
+import { usePolling } from '../hooks/usePolling';
 
 const formatMessageTime = (time) => {
   try {
@@ -147,88 +148,30 @@ const UnifiedChatInterface = ({ item, type, pageId, pageAccessToken, selectedPag
     return groups;
   }, {});
 
+  // Poll for messages when conversation is active
+  const pollForMessages = useCallback(async () => {
+    if (!item) return;
+    
+    try {
+      if (type === 'conversation') {
+        await fetchMessages();
+      } else if (type === 'comments') {
+        await fetchComments();
+      }
+    } catch (error) {
+      console.error('Error polling for messages:', error);
+    }
+  }, [item, type, pageId]);
+
+  // Enable polling with different intervals based on type
+  usePolling(pollForMessages, type === 'conversation' ? 8000 : 10000, !!item);
+  
   useEffect(() => {
     if (item) {
       if (type === 'conversation') {
         fetchMessages();
-        
-        const handleNewMessage = (data) => {
-          if (data.conversationId === item.conversationId || data.conversationId === item.id) {
-            
-            const isOwnMessage = data.message.senderId === pageId || data.message.type === 'outgoing';
-            
-            if (isOwnMessage) {
-              console.log('🚫 Received own message from socket - updating existing message if needed');
-   
-              setMessages(prevMessages => 
-                prevMessages.map(msg => 
-                  msg.pending && msg.content === data.message.content
-                    ? { ...msg, pending: false, messageId: data.message.messageId }
-                    : msg
-                )
-              );
-              return;
-            }
-            
-            console.log('📩 Received new message for current conversation:', data);
-            
-            setMessages(prevMessages => {
-              const messageExists = prevMessages.some(msg => 
-                msg.messageId === data.message.messageId || 
-                msg.id === data.message.messageId
-              );
-              
-              if (!messageExists) {
-                const newMsg = {
-                  messageId: data.message.messageId,
-                  senderId: data.message.senderId,
-                  senderName: data.message.senderName,
-                  message: data.message.content,
-                  content: data.message.content,
-                  timestamp: data.message.timestamp,
-                  created_time: data.message.timestamp,
-                  type: data.message.type
-                };
-                
-                const updated = [...prevMessages, newMsg];
-                return updated.sort((a, b) => 
-                  new Date(a.timestamp || a.created_time) - new Date(b.timestamp || b.created_time)
-                );
-              }
-              
-              return prevMessages;
-            });
-          }
-        };
-        
-        socketService.on('new-message', handleNewMessage);
-        
-        return () => {
-          socketService.off('new-message', handleNewMessage);
-        };
       } else if (type === 'comments') {
         fetchComments();
-        
-        const handleNewComment = (data) => {
-          console.log('📩 New comment/reply received:', data);
-          
-          if (data.pageId === pageId) {
-            if (commentRefreshTimeoutRef.current) {
-              clearTimeout(commentRefreshTimeoutRef.current);
-            }
-            
-            commentRefreshTimeoutRef.current = setTimeout(() => {
-              fetchComments();
-              commentRefreshTimeoutRef.current = null;
-            }, 100); // Very short delay just to batch multiple events
-          }
-        };
-        
-        socketService.on('new-comment', handleNewComment);
-        
-        return () => {
-          socketService.off('new-comment', handleNewComment);
-        };
       }
     }
   }, [item, type]);
@@ -277,20 +220,25 @@ const UnifiedChatInterface = ({ item, type, pageId, pageAccessToken, selectedPag
     setLoading(true);
     try {
       const conversationId = item.conversationId || item.id;
+      const token = localStorage.getItem('token');
+      const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
       
       if (pageAccessToken && pageId) {
         try {
           console.log('🔄 Attempting to sync messages:', {
             conversationId,
             pageId,
-            hasPageAccessToken: !!pageAccessToken,
-            pageAccessTokenLength: pageAccessToken?.length
+            hasPageAccessToken: !!pageAccessToken
           });
           
-          await axios.post(`/conversations/${conversationId}/sync-messages`, {
+          await axios.post(`${baseUrl}/conversations/${conversationId}/sync-messages`, {
             pageAccessToken: pageAccessToken,
             pageId: pageId,
             limit: 25
+          }, {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
           });
         } catch (syncError) {
           console.log('Sync failed, continuing with local data:', syncError.message);
@@ -303,10 +251,13 @@ const UnifiedChatInterface = ({ item, type, pageId, pageAccessToken, selectedPag
         });
       }
 
-      const response = await axios.get(`/conversations/${conversationId}/messages`, {
+      const response = await axios.get(`${baseUrl}/conversations/${conversationId}/messages`, {
         params: {
           pageId: pageId,
           limit: 25
+        },
+        headers: {
+          'Authorization': `Bearer ${token}`
         }
       });
       
@@ -319,12 +270,19 @@ const UnifiedChatInterface = ({ item, type, pageId, pageAccessToken, selectedPag
       console.error('Error fetching messages:', error);
       if (pageAccessToken) {
         try {
-          const fallbackResponse = await axios.get(`/facebook/conversations/${conversationId}/messages`, {
+          const token = localStorage.getItem('token');
+          const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
+          
+          const fallbackResponse = await axios.get(`${baseUrl}/facebook/conversations/${conversationId}/messages`, {
             params: {
               pageAccessToken: pageAccessToken,
               limit: 25
+            },
+            headers: {
+              'Authorization': `Bearer ${token}`
             }
           });
+          
           if (fallbackResponse.data.success) {
             const sortedMessages = (fallbackResponse.data.data.data || [])
               .sort((a, b) => new Date(a.created_time) - new Date(b.created_time));
@@ -423,11 +381,17 @@ const UnifiedChatInterface = ({ item, type, pageId, pageAccessToken, selectedPag
         });
         
         const conversationId = item.conversationId || item.id;
+        const token = localStorage.getItem('token');
+        const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
         
-        const response = await axios.post(`/facebook/conversations/${conversationId}/send`, {
+        const response = await axios.post(`${baseUrl}/facebook/conversations/${conversationId}/send`, {
           message: messageText,
           pageAccessToken: pageAccessToken,
           pageId: pageId
+        }, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
         });
         
         if (response.data.success) {
@@ -552,12 +516,18 @@ const UnifiedChatInterface = ({ item, type, pageId, pageAccessToken, selectedPag
     }
   };
 
-  const handleRefresh = () => {
+  const handleRefresh = async () => {
     setRefreshing(true);
-    if (type === 'conversation') {
-      fetchMessages();
-    } else if (type === 'comments') {
-      fetchComments();
+    try {
+      if (type === 'conversation') {
+        await fetchMessages();
+      } else if (type === 'comments') {
+        await fetchComments();
+      }
+    } catch (error) {
+      console.error('Error during refresh:', error);
+    } finally {
+      setRefreshing(false);
     }
   };
 
@@ -580,6 +550,11 @@ const UnifiedChatInterface = ({ item, type, pageId, pageAccessToken, selectedPag
       return item.userName || 'Unknown User';
     }
   };
+
+  // Removed duplicate pollForMessages function - using the one defined in the usePolling hook above
+
+  // Enable polling when an item is selected
+  usePolling(pollForMessages, 8000, !!item);
 
   if (!item) {
     return (

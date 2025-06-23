@@ -408,10 +408,31 @@ const CommentsChatInterface = ({ selectedPage, pageAccessToken }) => {
                     src={selectedThread.userPicture} 
                     alt={selectedThread.userName}
                     className="w-8 h-8 rounded-full mr-3"
+                    onError={(e) => {
+                      // Try Facebook's default profile picture if we have userId
+                      if (selectedThread.userId && !e.target.src.includes('facebook-user-default')) {
+                        e.target.src = `https://graph.facebook.com/${selectedThread.userId}/picture?type=normal`;
+                      } else {
+                        // Final fallback - hide img and show div with initial
+                        e.target.style.display = 'none';
+                        const parent = e.target.parentElement;
+                        if (parent) {
+                          const fallbackDiv = document.createElement('div');
+                          fallbackDiv.className = "w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center mr-3";
+                          
+                          const initialSpan = document.createElement('span');
+                          initialSpan.className = "text-white font-medium text-xs";
+                          initialSpan.textContent = selectedThread.userName.charAt(0).toUpperCase();
+                          
+                          fallbackDiv.appendChild(initialSpan);
+                          parent.appendChild(fallbackDiv);
+                        }
+                      }
+                    }}
                   />
                 ) : (
-                  <div className="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center mr-3">
-                    <span className="text-gray-600 font-medium text-xs">
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center mr-3">
+                    <span className="text-white font-medium text-xs">
                       {selectedThread.userName.charAt(0).toUpperCase()}
                     </span>
                   </div>
@@ -452,10 +473,32 @@ const CommentsChatInterface = ({ selectedPage, pageAccessToken }) => {
                           src={getCommentAuthor(comment).picture} 
                           alt={getCommentAuthor(comment).name}
                           className="w-8 h-8 rounded-full"
+                          onError={(e) => {
+                            const authorId = getCommentAuthor(comment).id;
+                            // Try Facebook's default profile picture if author has an ID
+                            if (authorId && authorId !== 'unknown' && !e.target.src.includes('facebook-user-default')) {
+                              e.target.src = `https://graph.facebook.com/${authorId}/picture?type=normal`;
+                            } else {
+                              // Final fallback - hide img and show div with initial
+                              e.target.style.display = 'none';
+                              const parent = e.target.parentElement;
+                              if (parent) {
+                                const fallbackDiv = document.createElement('div');
+                                fallbackDiv.className = "w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center";
+                                
+                                const initialSpan = document.createElement('span');
+                                initialSpan.className = "text-white font-medium text-xs";
+                                initialSpan.textContent = getCommentAuthor(comment).name.charAt(0).toUpperCase();
+                                
+                                fallbackDiv.appendChild(initialSpan);
+                                parent.appendChild(fallbackDiv);
+                              }
+                            }
+                          }}
                         />
                       ) : (
-                        <div className="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center">
-                          <span className="text-gray-600 font-medium text-xs">
+                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center">
+                          <span className="text-white font-medium text-xs">
                             {getCommentAuthor(comment).name.charAt(0).toUpperCase()}
                           </span>
                         </div>
