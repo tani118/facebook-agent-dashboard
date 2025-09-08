@@ -1,10 +1,12 @@
 # Facebook Helpdesk Dashboard
+## Demo: https://www.loom.com/share/5548fd67aba2476eb7c0fd5013d89f8e?sid=650bd38d-c7ca-4881-a5a1-54233c667e4b
+## Deployed at: https://facebook-agent-dashboard-2.vercel.app/
 
 A complete Facebook Helpdesk Dashboard solution that allows businesses to manage Facebook Messenger conversations and post comments from a unified interface.
 
 ## Features
 
-### Backend (✅ Complete)
+### Backend
 - **Authentication System**: JWT-based user authentication with signup/login
 - **Facebook Integration**: OAuth integration for page connections
 - **Messenger Management**: Real-time conversation handling with 24-hour rule
@@ -13,7 +15,7 @@ A complete Facebook Helpdesk Dashboard solution that allows businesses to manage
 - **Agent Assignment**: Manual and automatic conversation assignment
 - **Database Models**: User, Conversation, and Message management
 
-### Frontend (✅ Complete)
+### Frontend
 - **Simple Dashboard Interface**: Clean and minimal design
 - **Authentication Flow**: Login/Signup with proper validation
 - **Facebook Page Setup**: Connect and manage Facebook pages
@@ -173,7 +175,7 @@ facebook-agent-dashboard/
 
 ## Development Status
 
-### ✅ Completed Features
+### Features
 - Complete backend API with 25+ endpoints
 - User authentication and authorization
 - Facebook OAuth integration
@@ -184,41 +186,12 @@ facebook-agent-dashboard/
 - Dashboard with conversation and post management
 - Chat interface for messaging and commenting
 
-### 🚧 Production Setup Required
+### Production Setup Required
 - Facebook App configuration with real credentials
 - Public webhook URL setup
 - Production deployment (AWS, GCP, Azure)
 - SSL certificates and domain setup
-
-### 🔮 Future Enhancements
-- Real-time WebSocket notifications
-- Advanced analytics and reporting
-- Automated responses and chatbots
-- Multi-language support
-- Advanced moderation tools
-- Team collaboration features
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Test thoroughly
-5. Submit a pull request
-
-## License
-
-This project is licensed under the MIT License.
-
-## Support
-
 For issues and questions:
 - Create an issue in the repository
 - Check the API documentation in `backend/COMPLETE_API_DOCS.md`
 - Review the implementation status in `backend/FINAL_IMPLEMENTATION_STATUS.md`
-
----
-
-**Status**: ✅ **Ready for Production Deployment**
-
-The Facebook Helpdesk Dashboard is now fully functional and ready for production use with real Facebook app credentials!
